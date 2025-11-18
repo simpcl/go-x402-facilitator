@@ -202,9 +202,6 @@ go test ./...
 - `github.com/gin-gonic/gin` - HTTP web framework
 - `github.com/shopspring/decimal` - Precise decimal arithmetic
 
-## License
-
-MIT License - See LICENSE file for details
 
 ## Acknowledgments
 
