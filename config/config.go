@@ -26,9 +26,6 @@ type Config struct {
 	// Server Configuration
 	Port string
 	Host string
-
-	// API Configuration
-	BaseURL string
 }
 
 func LoadConfig() *Config {
@@ -50,7 +47,6 @@ func LoadConfig() *Config {
 		MerchantWalletAddress: getEnv("MERCHANT_WALLET_ADDRESS", "0x183052a3526d2ebd0f8dd7a90bed2943e0126795"),
 		Port:                  getEnv("PORT", "8080"),
 		Host:                  getEnv("HOST", "localhost"),
-		BaseURL:               getEnv("NEXT_PUBLIC_BASE_URL", "http://localhost:8080"),
 	}
 }
 
