@@ -88,7 +88,7 @@ BLOCKCHAIN_RPC=http://127.0.0.1:8545
 BLOCKCHAIN_ID=1337
 
 # Token Configuration
-NEXT_PUBLIC_USDX_TOKEN_ADDRESS=0xcfFA309a5Fb3ac7419eBC8Ba4a6063Ff2a7585F5
+GENERIC_ERC20_TOKEN_CONTRACT_ADDRESS=0x6C90aa4A4196E01dba6Ff8269493FDa7b66b95C5
 
 # Facilitator Private Keys (TESTNET ONLY)
 FACILITATOR_ALPHA_PRIVATE_KEY=your_alpha_private_key
@@ -132,7 +132,7 @@ curl http://localhost:8080/api/secret
 
 # Response:
 {
-  "price": "1 USDx",
+  "price": "1 tokens",
   "asset": "0xcfFA309a5Fb3ac7419eBC8Ba4a6063Ff2a7585F5",
   "facilitators": [
     {

@@ -24,7 +24,7 @@ import (
 type FacilitatorService struct {
 	config *config.Config
 	client *ethclient.Client
-	usdx   *blockchain.ERC20Contract
+	token  *blockchain.ERC20Contract
 }
 
 // NewFacilitatorService creates a new facilitator service
@@ -34,16 +34,16 @@ func NewFacilitatorService(cfg *config.Config) (*FacilitatorService, error) {
 		return nil, fmt.Errorf("failed to connect to blockchain: %w", err)
 	}
 
-	usdxAddress := common.HexToAddress(cfg.USDXTokenAddress)
-	usdx, err := blockchain.NewERC20Contract(client, usdxAddress)
+	tokenAddress := common.HexToAddress(cfg.ERC20TokenAddress)
+	token, err := blockchain.NewERC20Contract(client, tokenAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create USDX contract instance: %w", err)
+		return nil, fmt.Errorf("failed to create ERC20 contract instance: %w", err)
 	}
 
 	return &FacilitatorService{
 		config: cfg,
 		client: client,
-		usdx:   usdx,
+		token:  token,
 	}, nil
 }
 
@@ -79,7 +79,7 @@ func (fs *FacilitatorService) ProcessPayment(facilitatorName string, req *models
 	}
 
 	// Get token decimals
-	tokenInfo, err := fs.usdx.GetTokenInfo(context.Background())
+	tokenInfo, err := fs.token.GetTokenInfo(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get token info: %w", err)
 	}
@@ -127,7 +127,7 @@ func (fs *FacilitatorService) processPermitFlow(facilitatorName, privateKey stri
 	}
 
 	// Execute permit
-	if err := fs.usdx.Permit(privateKey, owner, walletAddress, value, big.NewInt(int64(deadline)), uint8(req.V), r, s); err != nil {
+	if err := fs.token.Permit(privateKey, owner, walletAddress, value, big.NewInt(int64(deadline)), uint8(req.V), r, s); err != nil {
 		state.IncrementFailure(facilitatorName)
 		return nil, fmt.Errorf("permit failed: %w", err)
 	}
@@ -138,7 +138,7 @@ func (fs *FacilitatorService) processPermitFlow(facilitatorName, privateKey stri
 	amountToMerchant := new(big.Int).Sub(value, fee)
 
 	// Execute transferFrom
-	transferResp, err := fs.usdx.TransferFrom(privateKey, owner, common.HexToAddress(fs.config.MerchantWalletAddress), amountToMerchant, 0)
+	transferResp, err := fs.token.TransferFrom(privateKey, owner, common.HexToAddress(fs.config.MerchantWalletAddress), amountToMerchant, 0)
 	if err != nil {
 		state.IncrementFailure(facilitatorName)
 		return nil, fmt.Errorf("transferFrom failed: %w", err)
@@ -182,38 +182,38 @@ func (fs *FacilitatorService) processDirectTransfer(facilitatorName, privateKey 
 	// For demo, transfer 1 token
 	amount := fs.parseAmount("1", decimals)
 
-	// Check USDX balance
+	// Check ERC20 token balance
 	walletAddress, err := fs.getAddressFromPrivateKey(privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get wallet address: %w", err)
 	}
 
-	balance, err := fs.usdx.GetBalanceOf(context.Background(), walletAddress)
+	balance, err := fs.token.GetBalanceOf(context.Background(), walletAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance: %w", err)
 	}
 
 	if balance.Cmp(amount) < 0 {
-		return nil, fmt.Errorf("insufficient USDX balance: have %s, need %s",
+		return nil, fmt.Errorf("insufficient ERC20 token balance: have %s, need %s",
 			fs.formatAmount(balance, decimals),
 			fs.formatAmount(amount, decimals))
 	}
 
 	// Get balance before
-	balanceBefore, err := fs.usdx.GetBalanceOf(context.Background(), walletAddress)
+	balanceBefore, err := fs.token.GetBalanceOf(context.Background(), walletAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance before: %w", err)
 	}
 
 	// Execute transfer
-	transferResp, err := fs.usdx.Transfer(privateKey, common.HexToAddress(fs.config.MerchantWalletAddress), amount, 0)
+	transferResp, err := fs.token.Transfer(privateKey, common.HexToAddress(fs.config.MerchantWalletAddress), amount, 0)
 	if err != nil {
 		state.IncrementFailure(facilitatorName)
 		return nil, fmt.Errorf("transfer failed: %w", err)
 	}
 
 	// Get balance after
-	balanceAfter, err := fs.usdx.GetBalanceOf(context.Background(), walletAddress)
+	balanceAfter, err := fs.token.GetBalanceOf(context.Background(), walletAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance after: %w", err)
 	}
@@ -221,7 +221,7 @@ func (fs *FacilitatorService) processDirectTransfer(facilitatorName, privateKey 
 	// Update settlement state
 	state.UpdateSettlement(facilitatorName, &models.Settlement{
 		TxHash:             transferResp.TxHash,
-		Amount:             "1.00 USDx",
+		Amount:             "1.00 tokens",
 		To:                 fs.config.MerchantWalletAddress,
 		GasCost:            transferResp.GasCost,
 		Payer:              walletAddress.Hex(),
@@ -236,8 +236,8 @@ func (fs *FacilitatorService) processDirectTransfer(facilitatorName, privateKey 
 		Facilitator:        strings.Title(facilitatorName),
 		FacilitatorAddress: transferResp.From,
 		Fee:                fmt.Sprintf("%.1f%%", float64(feeBps)/100),
-		Amount:             "1.00 USDx",
-		Asset:              fs.config.USDXTokenAddress,
+		Amount:             "1.00 tokens",
+		Asset:              fs.config.ERC20TokenAddress,
 		Merchant:           fs.config.MerchantWalletAddress,
 		TxHash:             transferResp.TxHash,
 		Network:            fs.config.GetChainName(),
@@ -315,7 +315,7 @@ func (fs *FacilitatorService) getAddressFromPrivateKey(privateKey string) (commo
 
 func (fs *FacilitatorService) formatAmount(amount *big.Int, decimals uint8) string {
 	d := decimal.NewFromBigInt(amount, -int32(decimals))
-	return d.String() + " USDx"
+	return d.String() + " tokens"
 }
 
 func (fs *FacilitatorService) parseAmount(amountStr string, decimals uint8) *big.Int {

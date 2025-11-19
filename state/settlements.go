@@ -212,7 +212,7 @@ func GetEvents(explorerURL string) []models.TransactionEvent {
 		event := models.TransactionEvent{
 			Time:        globalState.Alpha.LastAt.Format("15:04:05"),
 			Facilitator: "Alpha",
-			Amount:      getStringOrEmpty(globalState.Alpha.LastAmount) + " USDx",
+			Amount:      getStringOrEmpty(globalState.Alpha.LastAmount) + " tokens",
 			Route:       "/api/secret",
 			Merchant:    getShortAddress(getStringOrEmpty(globalState.Alpha.LastTo)),
 			TxHashShort: getShortTxHash(*globalState.Alpha.LastTxHash),
@@ -228,7 +228,7 @@ func GetEvents(explorerURL string) []models.TransactionEvent {
 		event := models.TransactionEvent{
 			Time:        globalState.Beta.LastAt.Format("15:04:05"),
 			Facilitator: "Beta",
-			Amount:      getStringOrEmpty(globalState.Beta.LastAmount) + " USDx",
+			Amount:      getStringOrEmpty(globalState.Beta.LastAmount) + " tokens",
 			Route:       "/api/secret",
 			Merchant:    getShortAddress(getStringOrEmpty(globalState.Beta.LastTo)),
 			TxHashShort: getShortTxHash(*globalState.Beta.LastTxHash),
@@ -244,7 +244,7 @@ func GetEvents(explorerURL string) []models.TransactionEvent {
 		event := models.TransactionEvent{
 			Time:        globalState.Gamma.LastAt.Format("15:04:05"),
 			Facilitator: "Gamma",
-			Amount:      getStringOrEmpty(globalState.Gamma.LastAmount) + " USDx",
+			Amount:      getStringOrEmpty(globalState.Gamma.LastAmount) + " tokens",
 			Route:       "/api/secret",
 			Merchant:    getShortAddress(getStringOrEmpty(globalState.Gamma.LastTo)),
 			TxHashShort: getShortTxHash(*globalState.Gamma.LastTxHash),
@@ -263,8 +263,8 @@ func GetEvents(explorerURL string) []models.TransactionEvent {
 func parseAmountToFloat64(amount string) (float64, error) {
 	// Remove potential token symbols and spaces
 	cleanAmount := amount
-	if len(amount) > 4 && amount[len(amount)-4:] == "USDx" {
-		cleanAmount = amount[:len(amount)-5]
+	if len(amount) > 6 && amount[len(amount)-6:] == "tokens" {
+		cleanAmount = amount[:len(amount)-7]
 		cleanAmount = strings.TrimSpace(cleanAmount)
 	}
 

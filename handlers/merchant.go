@@ -34,7 +34,7 @@ func (h *MerchantHandler) HandleSecret(c *gin.Context) {
 		alphaAddr, betaAddr, gammaAddr, settleAddr := h.facilitatorHandler.GetFacilitatorAddresses()
 
 		response := models.PaymentRequiredResponse{
-			Price: "1 USDx",
+			Price: "1 tokens",
 			Asset: "0xcfFA309a5Fb3ac7419eBC8Ba4a6063Ff2a7585F5",
 			Facilitators: []models.Facilitator{
 				{
@@ -75,7 +75,7 @@ func (h *MerchantHandler) HandleSecret(c *gin.Context) {
 
 	// If payment proof exists, return the protected data
 	c.JSON(http.StatusOK, gin.H{
-		"alpha": "whale 0x9b... moved 320,000 USDx to CEX 4 min ago",
+		"alpha": "whale 0x9b... moved 320,000 tokens to CEX 4 min ago",
 	})
 }
 
@@ -111,7 +111,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 	}
 
 	totalRequests := settlementState.Totals.TotalRequests
-	totalVolume := strconv.FormatFloat(settlementState.Totals.TotalVolume, 'f', 2, 64) + " USDx"
+	totalVolume := strconv.FormatFloat(settlementState.Totals.TotalVolume, 'f', 2, 64) + " tokens"
 	gasSponsored := strconv.FormatFloat(settlementState.Totals.TotalGasNative, 'f', 6, 64) + " " + h.config.GetNativeCurrencySymbol()
 
 	summary := models.SummaryStats{
@@ -151,7 +151,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			}(),
 			Fee:      "0.5%",
 			Requests: strconv.Itoa(settlementState.Alpha.SuccessCount),
-			Volume:   strconv.Itoa(settlementState.Alpha.SuccessCount) + ".00 USDx",
+			Volume:   strconv.Itoa(settlementState.Alpha.SuccessCount) + ".00 tokens",
 			LastTxHash: func() string {
 				if settlementState.Alpha.LastTxHash != nil {
 					txHash := *settlementState.Alpha.LastTxHash
@@ -194,7 +194,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			}(),
 			Fee:      "1.0%",
 			Requests: strconv.Itoa(settlementState.Beta.SuccessCount),
-			Volume:   strconv.Itoa(settlementState.Beta.SuccessCount) + ".00 USDx",
+			Volume:   strconv.Itoa(settlementState.Beta.SuccessCount) + ".00 tokens",
 			LastTxHash: func() string {
 				if settlementState.Beta.LastTxHash != nil {
 					txHash := *settlementState.Beta.LastTxHash
@@ -237,7 +237,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			}(),
 			Fee:      "2.0%",
 			Requests: strconv.Itoa(settlementState.Gamma.SuccessCount),
-			Volume:   strconv.Itoa(settlementState.Gamma.SuccessCount) + ".00 USDx",
+			Volume:   strconv.Itoa(settlementState.Gamma.SuccessCount) + ".00 tokens",
 			LastTxHash: func() string {
 				if settlementState.Gamma.LastTxHash != nil {
 					txHash := *settlementState.Gamma.LastTxHash
@@ -280,7 +280,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			}(),
 			Fee:      "0%",
 			Requests: strconv.Itoa(settlementState.Settle.SuccessCount),
-			Volume:   strconv.Itoa(settlementState.Settle.SuccessCount) + ".00 USDx",
+			Volume:   strconv.Itoa(settlementState.Settle.SuccessCount) + ".00 tokens",
 			LastTxHash: func() string {
 				if settlementState.Settle.LastTxHash != nil {
 					txHash := *settlementState.Settle.LastTxHash

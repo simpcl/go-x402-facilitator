@@ -12,7 +12,7 @@ type Config struct {
 	// Blockchain Configuration
 	BlockchainRPC    string
 	ChainID          int64
-	USDXTokenAddress string
+	ERC20TokenAddress string
 
 	// Facilitator Private Keys
 	AlphaPrivateKey  string
@@ -39,7 +39,7 @@ func LoadConfig() *Config {
 	return &Config{
 		BlockchainRPC:         getEnv("BLOCKCHAIN_RPC", "http://127.0.0.1:8545"),
 		ChainID:               chainID,
-		USDXTokenAddress:      getEnv("NEXT_PUBLIC_USDX_TOKEN_ADDRESS", "0xcfFA309a5Fb3ac7419eBC8Ba4a6063Ff2a7585F5"),
+		ERC20TokenAddress:     getEnv("GENERIC_ERC20_TOKEN_CONTRACT_ADDRESS", "0x6C90aa4A4196E01dba6Ff8269493FDa7b66b95C5"),
 		AlphaPrivateKey:       getEnv("FACILITATOR_ALPHA_PRIVATE_KEY", ""),
 		BetaPrivateKey:        getEnv("FACILITATOR_BETA_PRIVATE_KEY", ""),
 		GammaPrivateKey:       getEnv("FACILITATOR_GAMMA_PRIVATE_KEY", ""),
