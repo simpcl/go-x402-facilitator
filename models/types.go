@@ -103,7 +103,7 @@ type FacilitatorStats struct {
 	Requests    string `json:"requests"`
 	Volume      string `json:"volume"`
 	LastTxHash  string `json:"lastTxHash"`
-	BscScanUrl  string `json:"bscScanUrl"`
+	ExplorerUrl string `json:"explorerUrl"`
 	Tags        []string `json:"tags"`
 	Uptime      string `json:"uptime"`
 }
@@ -116,7 +116,7 @@ type TransactionEvent struct {
 	Route       string `json:"route"`
 	Merchant    string `json:"merchant"`
 	TxHashShort string `json:"txHashShort"`
-	BscScanUrl  string `json:"bscScanUrl"`
+	ExplorerUrl string `json:"explorerUrl"`
 }
 
 // PermitRequest represents EIP-2612 permit request

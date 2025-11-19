@@ -29,7 +29,7 @@ type FacilitatorService struct {
 
 // NewFacilitatorService creates a new facilitator service
 func NewFacilitatorService(cfg *config.Config) (*FacilitatorService, error) {
-	client, err := ethclient.Dial(cfg.BNBTestnetRPC)
+	client, err := ethclient.Dial(cfg.BlockchainRPC)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blockchain: %w", err)
 	}
@@ -73,8 +73,8 @@ func (fs *FacilitatorService) ProcessPayment(facilitatorName string, req *models
 		return nil, fmt.Errorf("private key not configured for facilitator: %s", facilitatorName)
 	}
 
-	// Check BNB balance for gas
-	if err := fs.checkBNBBalance(privateKey); err != nil {
+	// Check native balance for gas
+	if err := fs.checkNativeBalance(privateKey); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func (fs *FacilitatorService) processPermitFlow(facilitatorName, privateKey stri
 		Payer:              req.Owner,
 		Amount:             amountHuman,
 		FeeBps:             feeBps,
-		Chain:              "BNB Testnet",
+		Chain:              fs.config.GetChainName(),
 		GasUsed:            strconv.FormatUint(transferResp.GasUsed, 10),
 		GasCost:            transferResp.GasCost,
 		Timestamp:          transferResp.Timestamp,
@@ -240,7 +240,7 @@ func (fs *FacilitatorService) processDirectTransfer(facilitatorName, privateKey 
 		Asset:              fs.config.USDXTokenAddress,
 		Merchant:           fs.config.MerchantWalletAddress,
 		TxHash:             transferResp.TxHash,
-		Network:            "BNB Testnet",
+		Network:            fs.config.GetChainName(),
 		BalanceBefore:      fs.formatAmount(balanceBefore, decimals),
 		BalanceAfter:       fs.formatAmount(balanceAfter, decimals),
 		BlockNumber:        transferResp.BlockNumber,
@@ -286,7 +286,7 @@ func (fs *FacilitatorService) TransferERC20(req *models.ContractInteraction) (*m
 
 // Helper functions
 
-func (fs *FacilitatorService) checkBNBBalance(privateKey string) error {
+func (fs *FacilitatorService) checkNativeBalance(privateKey string) error {
 	walletAddress, err := fs.getAddressFromPrivateKey(privateKey)
 	if err != nil {
 		return fmt.Errorf("failed to get wallet address: %w", err)
@@ -294,11 +294,11 @@ func (fs *FacilitatorService) checkBNBBalance(privateKey string) error {
 
 	balance, err := fs.client.BalanceAt(context.Background(), walletAddress, nil)
 	if err != nil {
-		return fmt.Errorf("failed to get BNB balance: %w", err)
+		return fmt.Errorf("failed to get native balance: %w", err)
 	}
 
 	if balance.Cmp(big.NewInt(0)) == 0 {
-		return fmt.Errorf("facilitator wallet %s has no BNB for gas. Please fund it with BNB testnet tokens from https://testnet.bnbchain.org/faucet-smart", walletAddress.Hex())
+		return fmt.Errorf("facilitator wallet %s has no native tokens for gas. Please fund it with native tokens for the chain", walletAddress.Hex())
 	}
 
 	return nil

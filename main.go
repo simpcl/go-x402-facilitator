@@ -23,8 +23,8 @@ func main() {
 
 	// Initialize handlers
 	facilitatorHandler := handlers.NewFacilitatorHandler(facilitatorService, cfg)
-	merchantHandler := handlers.NewMerchantHandler(facilitatorHandler)
-	verifyHandler := handlers.NewVerifyHandler(cfg.BNBTestnetRPC)
+	merchantHandler := handlers.NewMerchantHandler(facilitatorHandler, cfg)
+	verifyHandler := handlers.NewVerifyHandler(cfg.BlockchainRPC)
 
 	// Initialize Gin router
 	router := gin.Default()
@@ -38,12 +38,12 @@ func main() {
 	})
 
 	// Setup routes
-	setupRoutes(router, facilitatorHandler, merchantHandler, verifyHandler)
+	setupRoutes(router, facilitatorHandler, merchantHandler, verifyHandler, cfg)
 
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
-	log.Printf("🚀 Starting Go x402 Facilitator Server on %s", addr)
-	log.Printf("📡 Available API endpoints:")
+	log.Printf("Starting Go x402 Facilitator Server on %s", addr)
+	log.Printf("Available API endpoints:")
 	log.Printf("   POST /api/facilitators/alpha - Alpha facilitator (0.5% fee)")
 	log.Printf("   POST /api/facilitators/beta  - Beta facilitator (1.0% fee)")
 	log.Printf("   POST /api/facilitators/gamma - Gamma facilitator (2.0% fee)")
@@ -61,7 +61,7 @@ func main() {
 	}
 }
 
-func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handlers.MerchantHandler, vh *handlers.VerifyHandler) {
+func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handlers.MerchantHandler, vh *handlers.VerifyHandler, cfg *config.Config) {
 	api := router.Group("/api")
 
 	// Facilitator endpoints - identical to Facora1 functionality
@@ -92,7 +92,7 @@ func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handle
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"service": "go-x402-facilitator",
-			"network": "BNB Testnet",
+			"network": cfg.GetChainName(),
 		})
 	})
 
@@ -100,7 +100,7 @@ func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handle
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"name":        "Go x402 Facilitator",
-			"description": "A Go implementation of x402 payment facilitators on BNB Chain",
+			"description": "A Go implementation of x402 payment facilitators for EVM-compatible blockchains",
 			"version":     "1.0.0",
 			"features": []string{
 				"ERC20 token transfers with arbitrary contracts",
@@ -109,7 +109,7 @@ func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handle
 				"Multiple facilitators with different fee structures",
 				"Real-time settlement tracking",
 				"Payment verification (Coinbase x402 compatible)",
-				"BNB Testnet integration",
+				"Multi-chain support (Ethereum, BSC, Polygon, etc.)",
 			},
 			"endpoints": map[string]string{
 				"facilitators":       "/api/facilitators/{alpha|beta|gamma|settle}",

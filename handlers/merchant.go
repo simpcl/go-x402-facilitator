@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"go-x402-facilitator/config"
 	"go-x402-facilitator/models"
 	"go-x402-facilitator/state"
 )
@@ -13,12 +14,14 @@ import (
 // MerchantHandler handles merchant-related endpoints
 type MerchantHandler struct {
 	facilitatorHandler *FacilitatorHandler
+	config             *config.Config
 }
 
 // NewMerchantHandler creates a new merchant handler
-func NewMerchantHandler(fh *FacilitatorHandler) *MerchantHandler {
+func NewMerchantHandler(fh *FacilitatorHandler, cfg *config.Config) *MerchantHandler {
 	return &MerchantHandler{
 		facilitatorHandler: fh,
+		config:             cfg,
 	}
 }
 
@@ -109,14 +112,14 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 
 	totalRequests := settlementState.Totals.TotalRequests
 	totalVolume := strconv.FormatFloat(settlementState.Totals.TotalVolume, 'f', 2, 64) + " USDx"
-	gasSponsored := strconv.FormatFloat(settlementState.Totals.TotalGasBNB, 'f', 6, 64) + " BNB"
+	gasSponsored := strconv.FormatFloat(settlementState.Totals.TotalGasNative, 'f', 6, 64) + " " + h.config.GetNativeCurrencySymbol()
 
 	summary := models.SummaryStats{
 		ActiveFacilitators: activeFacilitators,
-		Requests24h:       totalRequests,
-		Volume24h:         totalVolume,
-		AvgFee:            "0.7%",
-		Uptime:            alphaUptime,
+		Requests24h:        totalRequests,
+		Volume24h:          totalVolume,
+		AvgFee:             "0.7%",
+		Uptime:             alphaUptime,
 		AvgSettlementTime: func() string {
 			if alphaActive {
 				return "< 2s"
@@ -125,19 +128,31 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 		}(),
 		MerchantRevenue: totalVolume,
 		MerchantAddress: "0x183052a3526d2ebd0f8dd7a90bed2943e0126795", // Default merchant address
-		GasSponsored24h:  gasSponsored,
+		GasSponsored24h: gasSponsored,
 	}
 
 	// Build facilitator stats
 	facilitators := []models.FacilitatorStats{
 		{
-			Name:        "Facilitator Alpha",
-			Status:      func() string { if alphaActive { return "LIVE" } else { return "OFFLINE" } }(),
-			StatusTone:  func() string { if alphaActive { return "good" } else { return "warn" } }(),
-			Fee:         "0.5%",
-			Requests:    strconv.Itoa(settlementState.Alpha.SuccessCount),
-			Volume:      strconv.Itoa(settlementState.Alpha.SuccessCount) + ".00 USDx",
-			LastTxHash:  func() string {
+			Name: "Facilitator Alpha",
+			Status: func() string {
+				if alphaActive {
+					return "LIVE"
+				} else {
+					return "OFFLINE"
+				}
+			}(),
+			StatusTone: func() string {
+				if alphaActive {
+					return "good"
+				} else {
+					return "warn"
+				}
+			}(),
+			Fee:      "0.5%",
+			Requests: strconv.Itoa(settlementState.Alpha.SuccessCount),
+			Volume:   strconv.Itoa(settlementState.Alpha.SuccessCount) + ".00 USDx",
+			LastTxHash: func() string {
 				if settlementState.Alpha.LastTxHash != nil {
 					txHash := *settlementState.Alpha.LastTxHash
 					if len(txHash) > 10 {
@@ -147,9 +162,9 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 				}
 				return "No tx yet"
 			}(),
-			BscScanUrl: func() string {
+			ExplorerUrl: func() string {
 				if settlementState.Alpha.LastTxHash != nil {
-					return "https://testnet.bscscan.com/tx/" + *settlementState.Alpha.LastTxHash
+					return h.config.GetBlockExplorerURL() + "/tx/" + *settlementState.Alpha.LastTxHash
 				}
 				return ""
 			}(),
@@ -162,13 +177,25 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			Uptime: alphaUptime,
 		},
 		{
-			Name:        "Facilitator Beta",
-			Status:      func() string { if betaActive { return "LIVE" } else { return "OFFLINE" } }(),
-			StatusTone:  func() string { if betaActive { return "good" } else { return "warn" } }(),
-			Fee:         "1.0%",
-			Requests:    strconv.Itoa(settlementState.Beta.SuccessCount),
-			Volume:      strconv.Itoa(settlementState.Beta.SuccessCount) + ".00 USDx",
-			LastTxHash:  func() string {
+			Name: "Facilitator Beta",
+			Status: func() string {
+				if betaActive {
+					return "LIVE"
+				} else {
+					return "OFFLINE"
+				}
+			}(),
+			StatusTone: func() string {
+				if betaActive {
+					return "good"
+				} else {
+					return "warn"
+				}
+			}(),
+			Fee:      "1.0%",
+			Requests: strconv.Itoa(settlementState.Beta.SuccessCount),
+			Volume:   strconv.Itoa(settlementState.Beta.SuccessCount) + ".00 USDx",
+			LastTxHash: func() string {
 				if settlementState.Beta.LastTxHash != nil {
 					txHash := *settlementState.Beta.LastTxHash
 					if len(txHash) > 10 {
@@ -178,9 +205,9 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 				}
 				return "No tx yet"
 			}(),
-			BscScanUrl: func() string {
+			ExplorerUrl: func() string {
 				if settlementState.Beta.LastTxHash != nil {
-					return "https://testnet.bscscan.com/tx/" + *settlementState.Beta.LastTxHash
+					return h.config.GetBlockExplorerURL() + "/tx/" + *settlementState.Beta.LastTxHash
 				}
 				return ""
 			}(),
@@ -193,13 +220,25 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			Uptime: "0%",
 		},
 		{
-			Name:        "Facilitator Gamma",
-			Status:      func() string { if gammaActive { return "LIVE" } else { return "OFFLINE" } }(),
-			StatusTone:  func() string { if gammaActive { return "good" } else { return "warn" } }(),
-			Fee:         "2.0%",
-			Requests:    strconv.Itoa(settlementState.Gamma.SuccessCount),
-			Volume:      strconv.Itoa(settlementState.Gamma.SuccessCount) + ".00 USDx",
-			LastTxHash:  func() string {
+			Name: "Facilitator Gamma",
+			Status: func() string {
+				if gammaActive {
+					return "LIVE"
+				} else {
+					return "OFFLINE"
+				}
+			}(),
+			StatusTone: func() string {
+				if gammaActive {
+					return "good"
+				} else {
+					return "warn"
+				}
+			}(),
+			Fee:      "2.0%",
+			Requests: strconv.Itoa(settlementState.Gamma.SuccessCount),
+			Volume:   strconv.Itoa(settlementState.Gamma.SuccessCount) + ".00 USDx",
+			LastTxHash: func() string {
 				if settlementState.Gamma.LastTxHash != nil {
 					txHash := *settlementState.Gamma.LastTxHash
 					if len(txHash) > 10 {
@@ -209,9 +248,9 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 				}
 				return "No tx yet"
 			}(),
-			BscScanUrl: func() string {
+			ExplorerUrl: func() string {
 				if settlementState.Gamma.LastTxHash != nil {
-					return "https://testnet.bscscan.com/tx/" + *settlementState.Gamma.LastTxHash
+					return h.config.GetBlockExplorerURL() + "/tx/" + *settlementState.Gamma.LastTxHash
 				}
 				return ""
 			}(),
@@ -224,13 +263,25 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			Uptime: "0%",
 		},
 		{
-			Name:        "Facilitator Settle",
-			Status:      func() string { if settleActive { return "LIVE" } else { return "OFFLINE" } }(),
-			StatusTone:  func() string { if settleActive { return "good" } else { return "warn" } }(),
-			Fee:         "0%",
-			Requests:    strconv.Itoa(settlementState.Settle.SuccessCount),
-			Volume:      strconv.Itoa(settlementState.Settle.SuccessCount) + ".00 USDx",
-			LastTxHash:  func() string {
+			Name: "Facilitator Settle",
+			Status: func() string {
+				if settleActive {
+					return "LIVE"
+				} else {
+					return "OFFLINE"
+				}
+			}(),
+			StatusTone: func() string {
+				if settleActive {
+					return "good"
+				} else {
+					return "warn"
+				}
+			}(),
+			Fee:      "0%",
+			Requests: strconv.Itoa(settlementState.Settle.SuccessCount),
+			Volume:   strconv.Itoa(settlementState.Settle.SuccessCount) + ".00 USDx",
+			LastTxHash: func() string {
 				if settlementState.Settle.LastTxHash != nil {
 					txHash := *settlementState.Settle.LastTxHash
 					if len(txHash) > 10 {
@@ -240,9 +291,9 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 				}
 				return "No tx yet"
 			}(),
-			BscScanUrl: func() string {
+			ExplorerUrl: func() string {
 				if settlementState.Settle.LastTxHash != nil {
-					return "https://testnet.bscscan.com/tx/" + *settlementState.Settle.LastTxHash
+					return h.config.GetBlockExplorerURL() + "/tx/" + *settlementState.Settle.LastTxHash
 				}
 				return ""
 			}(),
@@ -257,7 +308,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 	}
 
 	// Get events
-	events := state.GetEvents()
+	events := state.GetEvents(h.config.GetBlockExplorerURLForChain())
 
 	response := models.StatsResponse{
 		Summary:      summary,

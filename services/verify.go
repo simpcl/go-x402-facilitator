@@ -20,9 +20,6 @@ type VerifyService struct {
 
 // NewVerifyService creates a new verification service
 func NewVerifyService(rpcURL string) *VerifyService {
-	if rpcURL == "" {
-		rpcURL = "https://data-seed-prebsc-1-s1.bnbchain.org:8545" // BNB Testnet default
-	}
 	return &VerifyService{
 		RPCURL: rpcURL,
 	}

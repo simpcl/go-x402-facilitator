@@ -84,8 +84,8 @@ cp .env.example .env
 3. **Required Environment Variables**:
 ```bash
 # Blockchain Configuration
-BNB_TESTNET_RPC=https://data-seed-prebsc-1-s1.bnbchain.org:8545
-CHAIN_ID=97
+BLOCKCHAIN_RPC=http://127.0.0.1:8545
+BLOCKCHAIN_ID=1337
 
 # Token Configuration
 NEXT_PUBLIC_USDX_TOKEN_ADDRESS=0xcfFA309a5Fb3ac7419eBC8Ba4a6063Ff2a7585F5

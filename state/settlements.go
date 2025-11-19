@@ -12,15 +12,15 @@ import (
 
 // FacilitatorState tracks the state of each facilitator
 type FacilitatorState struct {
-	LastTxHash    *string     `json:"lastTxHash"`
-	LastAmount    *string     `json:"lastAmount"`
-	LastTo        *string     `json:"lastTo"`
-	LastAt        *time.Time  `json:"lastAt"`
-	SuccessCount  int         `json:"successCount"`
-	FailureCount  int         `json:"failureCount"`
-	TotalVolume   float64     `json:"totalVolume"`
-	TotalGasBNB   float64     `json:"totalGasBNB"`
-	mutex         sync.RWMutex `json:"-"`
+	LastTxHash     *string      `json:"lastTxHash"`
+	LastAmount     *string      `json:"lastAmount"`
+	LastTo         *string      `json:"lastTo"`
+	LastAt         *time.Time   `json:"lastAt"`
+	SuccessCount   int          `json:"successCount"`
+	FailureCount   int          `json:"failureCount"`
+	TotalVolume    float64      `json:"totalVolume"`
+	TotalGasNative float64      `json:"totalGasNative"`
+	mutex          sync.RWMutex `json:"-"`
 }
 
 // SettlementState manages global settlement state
@@ -35,56 +35,56 @@ type SettlementState struct {
 
 // Totals tracks global statistics
 type Totals struct {
-	TotalRequests int     `json:"totalRequests"`
-	TotalVolume   float64 `json:"totalVolume"`
-	TotalGasBNB   float64 `json:"totalGasBNB"`
+	TotalRequests  int     `json:"totalRequests"`
+	TotalVolume    float64 `json:"totalVolume"`
+	TotalGasNative float64 `json:"totalGasNative"`
 }
 
 var globalState = &SettlementState{
 	Alpha: FacilitatorState{
-		LastTxHash:   nil,
-		LastAmount:   nil,
-		LastTo:       nil,
-		LastAt:       nil,
-		SuccessCount: 0,
-		FailureCount: 0,
-		TotalVolume:  0.0,
-		TotalGasBNB:  0.0,
+		LastTxHash:     nil,
+		LastAmount:     nil,
+		LastTo:         nil,
+		LastAt:         nil,
+		SuccessCount:   0,
+		FailureCount:   0,
+		TotalVolume:    0.0,
+		TotalGasNative: 0.0,
 	},
 	Beta: FacilitatorState{
-		LastTxHash:   nil,
-		LastAmount:   nil,
-		LastTo:       nil,
-		LastAt:       nil,
-		SuccessCount: 0,
-		FailureCount: 0,
-		TotalVolume:  0.0,
-		TotalGasBNB:  0.0,
+		LastTxHash:     nil,
+		LastAmount:     nil,
+		LastTo:         nil,
+		LastAt:         nil,
+		SuccessCount:   0,
+		FailureCount:   0,
+		TotalVolume:    0.0,
+		TotalGasNative: 0.0,
 	},
 	Gamma: FacilitatorState{
-		LastTxHash:   nil,
-		LastAmount:   nil,
-		LastTo:       nil,
-		LastAt:       nil,
-		SuccessCount: 0,
-		FailureCount: 0,
-		TotalVolume:  0.0,
-		TotalGasBNB:  0.0,
+		LastTxHash:     nil,
+		LastAmount:     nil,
+		LastTo:         nil,
+		LastAt:         nil,
+		SuccessCount:   0,
+		FailureCount:   0,
+		TotalVolume:    0.0,
+		TotalGasNative: 0.0,
 	},
 	Settle: FacilitatorState{
-		LastTxHash:   nil,
-		LastAmount:   nil,
-		LastTo:       nil,
-		LastAt:       nil,
-		SuccessCount: 0,
-		FailureCount: 0,
-		TotalVolume:  0.0,
-		TotalGasBNB:  0.0,
+		LastTxHash:     nil,
+		LastAmount:     nil,
+		LastTo:         nil,
+		LastAt:         nil,
+		SuccessCount:   0,
+		FailureCount:   0,
+		TotalVolume:    0.0,
+		TotalGasNative: 0.0,
 	},
 	Totals: Totals{
-		TotalRequests: 0,
-		TotalVolume:   0.0,
-		TotalGasBNB:   0.0,
+		TotalRequests:  0,
+		TotalVolume:    0.0,
+		TotalGasNative: 0.0,
 	},
 }
 
@@ -136,8 +136,8 @@ func UpdateSettlement(facilitatorName string, settlement *models.Settlement) {
 
 	// Parse gas cost to float64
 	if gasCostFloat, err := parseGasCostToFloat64(settlement.GasCost); err == nil {
-		facilitator.TotalGasBNB += gasCostFloat
-		globalState.Totals.TotalGasBNB += gasCostFloat
+		facilitator.TotalGasNative += gasCostFloat
+		globalState.Totals.TotalGasNative += gasCostFloat
 	}
 
 	globalState.Totals.TotalRequests++
@@ -201,7 +201,7 @@ func IsFacilitatorActive(facilitatorName string) bool {
 }
 
 // GetEvents returns recent transaction events
-func GetEvents() []models.TransactionEvent {
+func GetEvents(explorerURL string) []models.TransactionEvent {
 	globalState.mutex.RLock()
 	defer globalState.mutex.RUnlock()
 
@@ -209,41 +209,50 @@ func GetEvents() []models.TransactionEvent {
 
 	// Add Alpha event if exists
 	if globalState.Alpha.LastTxHash != nil && globalState.Alpha.LastAt != nil {
-		events = append(events, models.TransactionEvent{
+		event := models.TransactionEvent{
 			Time:        globalState.Alpha.LastAt.Format("15:04:05"),
 			Facilitator: "Alpha",
 			Amount:      getStringOrEmpty(globalState.Alpha.LastAmount) + " USDx",
 			Route:       "/api/secret",
 			Merchant:    getShortAddress(getStringOrEmpty(globalState.Alpha.LastTo)),
 			TxHashShort: getShortTxHash(*globalState.Alpha.LastTxHash),
-			BscScanUrl:  "https://testnet.bscscan.com/tx/" + *globalState.Alpha.LastTxHash,
-		})
+		}
+		if explorerURL != "" {
+			event.ExplorerUrl = explorerURL + "/tx/" + *globalState.Alpha.LastTxHash
+		}
+		events = append(events, event)
 	}
 
 	// Add Beta event if exists
 	if globalState.Beta.LastTxHash != nil && globalState.Beta.LastAt != nil {
-		events = append(events, models.TransactionEvent{
+		event := models.TransactionEvent{
 			Time:        globalState.Beta.LastAt.Format("15:04:05"),
 			Facilitator: "Beta",
 			Amount:      getStringOrEmpty(globalState.Beta.LastAmount) + " USDx",
 			Route:       "/api/secret",
 			Merchant:    getShortAddress(getStringOrEmpty(globalState.Beta.LastTo)),
 			TxHashShort: getShortTxHash(*globalState.Beta.LastTxHash),
-			BscScanUrl:  "https://testnet.bscscan.com/tx/" + *globalState.Beta.LastTxHash,
-		})
+		}
+		if explorerURL != "" {
+			event.ExplorerUrl = explorerURL + "/tx/" + *globalState.Beta.LastTxHash
+		}
+		events = append(events, event)
 	}
 
 	// Add Gamma event if exists
 	if globalState.Gamma.LastTxHash != nil && globalState.Gamma.LastAt != nil {
-		events = append(events, models.TransactionEvent{
+		event := models.TransactionEvent{
 			Time:        globalState.Gamma.LastAt.Format("15:04:05"),
 			Facilitator: "Gamma",
 			Amount:      getStringOrEmpty(globalState.Gamma.LastAmount) + " USDx",
 			Route:       "/api/secret",
 			Merchant:    getShortAddress(getStringOrEmpty(globalState.Gamma.LastTo)),
 			TxHashShort: getShortTxHash(*globalState.Gamma.LastTxHash),
-			BscScanUrl:  "https://testnet.bscscan.com/tx/" + *globalState.Gamma.LastTxHash,
-		})
+		}
+		if explorerURL != "" {
+			event.ExplorerUrl = explorerURL + "/tx/" + *globalState.Gamma.LastTxHash
+		}
+		events = append(events, event)
 	}
 
 	return events
