@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"go-x402-facilitator/models"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"go-x402-facilitator/models"
 )
 
 // ERC20Contract wraps ERC20 token contract interactions
@@ -34,7 +35,7 @@ func NewERC20Contract(client *ethclient.Client, address common.Address) (*ERC20C
 
 	return &ERC20Contract{
 		client:   client,
-		contract: bind.NewBoundContract(address, parsedABI, nil, nil, nil),
+		contract: bind.NewBoundContract(address, parsedABI, client, client, client),
 		address:  address,
 	}, nil
 }
@@ -136,7 +137,7 @@ func (erc20 *ERC20Contract) Transfer(privateKeyHex string, destination common.Ad
 	}
 
 	// Create transaction options
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(97)) // BNB Testnet Chain ID
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337)) // Local blockchain Chain ID
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
@@ -191,7 +192,7 @@ func (erc20 *ERC20Contract) Permit(privateKeyHex string, owner, spender common.A
 	}
 
 	// Create transaction options
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(97)) // BNB Testnet Chain ID
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337)) // Local blockchain Chain ID
 	if err != nil {
 		return fmt.Errorf("failed to create transactor: %w", err)
 	}
@@ -224,7 +225,7 @@ func (erc20 *ERC20Contract) TransferFrom(privateKeyHex string, from, to common.A
 	}
 
 	// Create transaction options
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(97)) // BNB Testnet Chain ID
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337)) // Local blockchain Chain ID
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}

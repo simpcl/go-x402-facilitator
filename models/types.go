@@ -71,6 +71,7 @@ type Facilitator struct {
 	URL       string `json:"url,omitempty"`
 	FeeBps    int    `json:"feeBps,omitempty"`
 	Status    string `json:"status,omitempty"`
+	Note      string `json:"note,omitempty"`
 }
 
 // StatsResponse represents statistics response

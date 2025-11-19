@@ -15,9 +15,10 @@ type Config struct {
 	USDXTokenAddress string
 
 	// Facilitator Private Keys
-	AlphaPrivateKey string
-	BetaPrivateKey  string
-	GammaPrivateKey string
+	AlphaPrivateKey  string
+	BetaPrivateKey   string
+	GammaPrivateKey  string
+	SettlePrivateKey string
 
 	// Merchant Configuration
 	MerchantWalletAddress string
@@ -45,6 +46,7 @@ func LoadConfig() *Config {
 		AlphaPrivateKey:       getEnv("FACILITATOR_ALPHA_PRIVATE_KEY", ""),
 		BetaPrivateKey:        getEnv("FACILITATOR_BETA_PRIVATE_KEY", ""),
 		GammaPrivateKey:       getEnv("FACILITATOR_GAMMA_PRIVATE_KEY", ""),
+		SettlePrivateKey:      getEnv("FACILITATOR_SETTLE_PRIVATE_KEY", ""),
 		MerchantWalletAddress: getEnv("MERCHANT_WALLET_ADDRESS", "0x183052a3526d2ebd0f8dd7a90bed2943e0126795"),
 		Port:                  getEnv("PORT", "8080"),
 		Host:                  getEnv("HOST", "localhost"),

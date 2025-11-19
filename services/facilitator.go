@@ -22,9 +22,9 @@ import (
 
 // FacilitatorService handles facilitator operations
 type FacilitatorService struct {
-	config   *config.Config
-	client   *ethclient.Client
-	usdx     *blockchain.ERC20Contract
+	config *config.Config
+	client *ethclient.Client
+	usdx   *blockchain.ERC20Contract
 }
 
 // NewFacilitatorService creates a new facilitator service
@@ -62,6 +62,9 @@ func (fs *FacilitatorService) ProcessPayment(facilitatorName string, req *models
 	case "gamma":
 		privateKey = fs.config.GammaPrivateKey
 		feeBps = 200 // 2.0%
+	case "settle":
+		privateKey = fs.config.SettlePrivateKey
+		feeBps = 0 // 0% fee - matching Coinbase x402
 	default:
 		return nil, fmt.Errorf("unknown facilitator: %s", facilitatorName)
 	}
@@ -146,31 +149,31 @@ func (fs *FacilitatorService) processPermitFlow(facilitatorName, privateKey stri
 
 	// Update settlement state
 	state.UpdateSettlement(facilitatorName, &models.Settlement{
-		TxHash:              transferResp.TxHash,
-		Amount:              amountHuman,
-		To:                  fs.config.MerchantWalletAddress,
-		GasCost:             transferResp.GasCost,
-		Payer:               req.Owner,
-		BlockNumber:         transferResp.BlockNumber,
-		Timestamp:           time.Unix(transferResp.Timestamp, 0),
-		FacilitatorAddress:  transferResp.From,
-		FeeBps:              feeBps,
+		TxHash:             transferResp.TxHash,
+		Amount:             amountHuman,
+		To:                 fs.config.MerchantWalletAddress,
+		GasCost:            transferResp.GasCost,
+		Payer:              req.Owner,
+		BlockNumber:        transferResp.BlockNumber,
+		Timestamp:          time.Unix(transferResp.Timestamp, 0),
+		FacilitatorAddress: transferResp.From,
+		FeeBps:             feeBps,
 	})
 
 	return &models.PaymentResponse{
-		Settled:             true,
-		TxHash:              transferResp.TxHash,
-		BlockNumber:         transferResp.BlockNumber,
-		Facilitator:         strings.Title(facilitatorName),
-		FacilitatorAddress:  transferResp.From,
-		Merchant:            fs.config.MerchantWalletAddress,
-		Payer:               req.Owner,
-		Amount:              amountHuman,
-		FeeBps:              feeBps,
-		Chain:               "BNB Testnet",
-		GasUsed:             strconv.FormatUint(transferResp.GasUsed, 10),
-		GasCost:             transferResp.GasCost,
-		Timestamp:           transferResp.Timestamp,
+		Settled:            true,
+		TxHash:             transferResp.TxHash,
+		BlockNumber:        transferResp.BlockNumber,
+		Facilitator:        strings.Title(facilitatorName),
+		FacilitatorAddress: transferResp.From,
+		Merchant:           fs.config.MerchantWalletAddress,
+		Payer:              req.Owner,
+		Amount:             amountHuman,
+		FeeBps:             feeBps,
+		Chain:              "BNB Testnet",
+		GasUsed:            strconv.FormatUint(transferResp.GasUsed, 10),
+		GasCost:            transferResp.GasCost,
+		Timestamp:          transferResp.Timestamp,
 	}, nil
 }
 
@@ -217,31 +220,31 @@ func (fs *FacilitatorService) processDirectTransfer(facilitatorName, privateKey 
 
 	// Update settlement state
 	state.UpdateSettlement(facilitatorName, &models.Settlement{
-		TxHash:              transferResp.TxHash,
-		Amount:              "1.00 USDx",
-		To:                  fs.config.MerchantWalletAddress,
-		GasCost:             transferResp.GasCost,
-		Payer:               walletAddress.Hex(),
-		BlockNumber:         transferResp.BlockNumber,
-		Timestamp:           time.Unix(transferResp.Timestamp, 0),
-		FacilitatorAddress:  transferResp.From,
-		FeeBps:              feeBps,
+		TxHash:             transferResp.TxHash,
+		Amount:             "1.00 USDx",
+		To:                 fs.config.MerchantWalletAddress,
+		GasCost:            transferResp.GasCost,
+		Payer:              walletAddress.Hex(),
+		BlockNumber:        transferResp.BlockNumber,
+		Timestamp:          time.Unix(transferResp.Timestamp, 0),
+		FacilitatorAddress: transferResp.From,
+		FeeBps:             feeBps,
 	})
 
 	return &models.PaymentResponse{
-		Paid:                true,
-		Facilitator:         strings.Title(facilitatorName),
-		FacilitatorAddress:  transferResp.From,
-		Fee:                 fmt.Sprintf("%.1f%%", float64(feeBps)/100),
-		Amount:              "1.00 USDx",
-		Asset:               fs.config.USDXTokenAddress,
-		Merchant:            fs.config.MerchantWalletAddress,
-		TxHash:              transferResp.TxHash,
-		Network:             "BNB Testnet",
-		BalanceBefore:       fs.formatAmount(balanceBefore, decimals),
-		BalanceAfter:        fs.formatAmount(balanceAfter, decimals),
-		BlockNumber:         transferResp.BlockNumber,
-		GasCost:             transferResp.GasCost,
+		Paid:               true,
+		Facilitator:        strings.Title(facilitatorName),
+		FacilitatorAddress: transferResp.From,
+		Fee:                fmt.Sprintf("%.1f%%", float64(feeBps)/100),
+		Amount:             "1.00 USDx",
+		Asset:              fs.config.USDXTokenAddress,
+		Merchant:           fs.config.MerchantWalletAddress,
+		TxHash:             transferResp.TxHash,
+		Network:            "BNB Testnet",
+		BalanceBefore:      fs.formatAmount(balanceBefore, decimals),
+		BalanceAfter:       fs.formatAmount(balanceAfter, decimals),
+		BlockNumber:        transferResp.BlockNumber,
+		GasCost:            transferResp.GasCost,
 	}, nil
 }
 

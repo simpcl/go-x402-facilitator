@@ -28,7 +28,7 @@ func (h *MerchantHandler) HandleSecret(c *gin.Context) {
 
 	// If no payment proof, return 402 with facilitator list
 	if paidProof == "" {
-		alphaAddr, betaAddr, gammaAddr := h.facilitatorHandler.GetFacilitatorAddresses()
+		alphaAddr, betaAddr, gammaAddr, settleAddr := h.facilitatorHandler.GetFacilitatorAddresses()
 
 		response := models.PaymentRequiredResponse{
 			Price: "1 USDx",
@@ -55,6 +55,14 @@ func (h *MerchantHandler) HandleSecret(c *gin.Context) {
 					Address:  gammaAddr,
 					Live:     false,
 				},
+				{
+					Name:     "Settle",
+					Fee:      "0%",
+					Endpoint: "/api/facilitators/settle",
+					Address:  settleAddr,
+					Live:     true,
+					Note:     "Coinbase x402 compatible zero-fee facilitator",
+				},
 			},
 		}
 
@@ -75,6 +83,7 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 	alphaActive := settlementState.Alpha.LastTxHash != nil
 	betaActive := settlementState.Beta.LastTxHash != nil
 	gammaActive := settlementState.Gamma.LastTxHash != nil
+	settleActive := settlementState.Settle.LastTxHash != nil
 
 	activeFacilitators := 0
 	if alphaActive {
@@ -84,6 +93,9 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 		activeFacilitators++
 	}
 	if gammaActive {
+		activeFacilitators++
+	}
+	if settleActive {
 		activeFacilitators++
 	}
 
@@ -206,6 +218,37 @@ func (h *MerchantHandler) HandleStats(c *gin.Context) {
 			Tags: func() []string {
 				if gammaActive {
 					return []string{"Fast priority", "2.0% fee"}
+				}
+				return []string{"Offline"}
+			}(),
+			Uptime: "0%",
+		},
+		{
+			Name:        "Facilitator Settle",
+			Status:      func() string { if settleActive { return "LIVE" } else { return "OFFLINE" } }(),
+			StatusTone:  func() string { if settleActive { return "good" } else { return "warn" } }(),
+			Fee:         "0%",
+			Requests:    strconv.Itoa(settlementState.Settle.SuccessCount),
+			Volume:      strconv.Itoa(settlementState.Settle.SuccessCount) + ".00 USDx",
+			LastTxHash:  func() string {
+				if settlementState.Settle.LastTxHash != nil {
+					txHash := *settlementState.Settle.LastTxHash
+					if len(txHash) > 10 {
+						return txHash[:6] + "..." + txHash[len(txHash)-4:]
+					}
+					return txHash
+				}
+				return "No tx yet"
+			}(),
+			BscScanUrl: func() string {
+				if settlementState.Settle.LastTxHash != nil {
+					return "https://testnet.bscscan.com/tx/" + *settlementState.Settle.LastTxHash
+				}
+				return ""
+			}(),
+			Tags: func() []string {
+				if settleActive {
+					return []string{"Zero fee", "Coinbase x402 compatible", "Pays gas for user"}
 				}
 				return []string{"Offline"}
 			}(),

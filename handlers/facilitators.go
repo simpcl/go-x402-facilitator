@@ -40,6 +40,11 @@ func (h *FacilitatorHandler) HandleGamma(c *gin.Context) {
 	h.handleFacilitator(c, "gamma")
 }
 
+// HandleSettle handles Settle facilitator requests (zero-fee, matching Coinbase x402)
+func (h *FacilitatorHandler) HandleSettle(c *gin.Context) {
+	h.handleFacilitator(c, "settle")
+}
+
 // handleFacilitator is the common handler for all facilitators
 func (h *FacilitatorHandler) handleFacilitator(c *gin.Context, facilitatorName string) {
 	var req models.PaymentRequest
@@ -87,10 +92,11 @@ func (h *FacilitatorHandler) HandleTransfer(c *gin.Context) {
 }
 
 // GetFacilitatorAddresses returns facilitator addresses for the secret endpoint
-func (h *FacilitatorHandler) GetFacilitatorAddresses() (alpha, beta, gamma string) {
+func (h *FacilitatorHandler) GetFacilitatorAddresses() (alpha, beta, gamma, settle string) {
 	alpha = ""
 	beta = ""
 	gamma = ""
+	settle = ""
 
 	if h.config.AlphaPrivateKey != "" {
 		if privateKey, err := crypto.HexToECDSA(h.config.AlphaPrivateKey); err == nil {
@@ -107,6 +113,12 @@ func (h *FacilitatorHandler) GetFacilitatorAddresses() (alpha, beta, gamma strin
 	if h.config.GammaPrivateKey != "" {
 		if privateKey, err := crypto.HexToECDSA(h.config.GammaPrivateKey); err == nil {
 			gamma = crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+		}
+	}
+
+	if h.config.SettlePrivateKey != "" {
+		if privateKey, err := crypto.HexToECDSA(h.config.SettlePrivateKey); err == nil {
+			settle = crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 		}
 	}
 

@@ -28,6 +28,7 @@ type SettlementState struct {
 	Alpha  FacilitatorState `json:"alpha"`
 	Beta   FacilitatorState `json:"beta"`
 	Gamma  FacilitatorState `json:"gamma"`
+	Settle FacilitatorState `json:"settle"`
 	Totals Totals           `json:"totals"`
 	mutex  sync.RWMutex     `json:"-"`
 }
@@ -70,6 +71,16 @@ var globalState = &SettlementState{
 		TotalVolume:  0.0,
 		TotalGasBNB:  0.0,
 	},
+	Settle: FacilitatorState{
+		LastTxHash:   nil,
+		LastAmount:   nil,
+		LastTo:       nil,
+		LastAt:       nil,
+		SuccessCount: 0,
+		FailureCount: 0,
+		TotalVolume:  0.0,
+		TotalGasBNB:  0.0,
+	},
 	Totals: Totals{
 		TotalRequests: 0,
 		TotalVolume:   0.0,
@@ -100,6 +111,8 @@ func UpdateSettlement(facilitatorName string, settlement *models.Settlement) {
 		facilitator = &globalState.Beta
 	case "gamma":
 		facilitator = &globalState.Gamma
+	case "settle":
+		facilitator = &globalState.Settle
 	default:
 		return
 	}
@@ -143,6 +156,8 @@ func IncrementFailure(facilitatorName string) {
 		facilitator = &globalState.Beta
 	case "gamma":
 		facilitator = &globalState.Gamma
+	case "settle":
+		facilitator = &globalState.Settle
 	default:
 		return
 	}

@@ -47,6 +47,7 @@ func main() {
 	log.Printf("   POST /api/facilitators/alpha - Alpha facilitator (0.5% fee)")
 	log.Printf("   POST /api/facilitators/beta  - Beta facilitator (1.0% fee)")
 	log.Printf("   POST /api/facilitators/gamma - Gamma facilitator (2.0% fee)")
+	log.Printf("   POST /api/facilitators/settle - Settle facilitator (0% fee - Coinbase x402 compatible)")
 	log.Printf("   POST /api/transfer           - Generic ERC20 token transfer")
 	log.Printf("   POST /api/verify             - Payment verification (Coinbase x402 compatible)")
 	log.Printf("   GET  /api/verify/{txHash}    - Simple transaction verification")
@@ -67,6 +68,7 @@ func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handle
 	api.POST("/facilitators/alpha", fh.HandleAlpha)
 	api.POST("/facilitators/beta", fh.HandleBeta)
 	api.POST("/facilitators/gamma", fh.HandleGamma)
+	api.POST("/facilitators/settle", fh.HandleSettle) // Coinbase x402 compatible zero-fee facilitator
 
 	// Generic ERC20 transfer endpoint - matches the image requirements
 	api.POST("/transfer", fh.HandleTransfer)
@@ -110,7 +112,7 @@ func setupRoutes(router *gin.Engine, fh *handlers.FacilitatorHandler, mh *handle
 				"BNB Testnet integration",
 			},
 			"endpoints": map[string]string{
-				"facilitators":       "/api/facilitators/{alpha|beta|gamma}",
+				"facilitators":       "/api/facilitators/{alpha|beta|gamma|settle}",
 				"erc20_transfer":     "/api/transfer",
 				"verify_payment":     "/api/verify",
 				"verify_tx":          "/api/verify/{txHash}",
