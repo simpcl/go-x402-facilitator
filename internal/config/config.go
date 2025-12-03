@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -60,13 +61,12 @@ type SupportedConfig struct {
 
 // LoadConfig loads configuration from file and environment
 func LoadConfig(configPath string) (*Config, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-
-	// Set config search paths
 	if configPath != "" {
-		viper.AddConfigPath(configPath)
+		// If specific config file is provided, use it directly
+		viper.SetConfigFile(configPath)
 	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
 		viper.AddConfigPath(".")
 		viper.AddConfigPath("./config")
 		viper.AddConfigPath("/etc/x402-facilitator")
@@ -76,6 +76,9 @@ func LoadConfig(configPath string) (*Config, error) {
 	// Set environment variable prefix
 	viper.SetEnvPrefix("X402")
 	viper.AutomaticEnv()
+
+	// Set environment variable key replacer to handle underscores
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Set default values
 	setDefaults()

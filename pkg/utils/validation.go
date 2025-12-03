@@ -17,6 +17,7 @@ import (
 
 // SupportedEVMNetworks lists all supported EVM networks
 var SupportedEVMNetworks = []string{
+	"localhost",
 	"ethereum-sepolia",
 	"ethereum",
 	"base-sepolia",
@@ -29,6 +30,7 @@ var SupportedEVMNetworks = []string{
 
 // SupportedChains maps network names to chain IDs
 var SupportedChains = map[string]int64{
+	"localhost":        1337,
 	"ethereum-sepolia": 11155111,
 	"ethereum":         1,
 	"base-sepolia":     84532,
@@ -41,6 +43,7 @@ var SupportedChains = map[string]int64{
 
 // USDCContractAddresses maps network names to USDC contract addresses
 var USDCContractAddresses = map[string]string{
+	"localhost":        "0xC35898F0f03C0894107869844d7467Af417aD868",
 	"ethereum-sepolia": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
 	"ethereum":         "0xA0b86a33E6417c5C2c0a9b0B7F8e0B7e8b4a0c8e",
 	"base-sepolia":     "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
