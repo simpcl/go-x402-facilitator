@@ -342,8 +342,8 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 		},
 		PrimaryType: "TransferWithAuthorization",
 		Domain: facilitatorTypes.TypedDataDomain{
-			Name:              "USDC",
-			Version:           "2",
+			Name:              "GenericToken",
+			Version:           "1",
 			ChainID:           big.NewInt(f.chainID),
 			VerifyingContract: requirements.Asset,
 		},
@@ -366,6 +366,7 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 	// Verify the recovered address matches the expected address
 	expectedAddr := common.HexToAddress(payload.Authorization.From)
 	if recoveredAddr != expectedAddr {
+		log.Error().Err(err).Msgf("signature verification failed, address mismatch: expected %s, got %s", expectedAddr.Hex(), recoveredAddr.Hex())
 		return fmt.Errorf("signature verification failed: address mismatch")
 	}
 
@@ -538,7 +539,18 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	validBefore, _ := new(big.Int).SetString(payload.Authorization.ValidBefore, 10)
 	nonce := common.HexToHash(payload.Authorization.Nonce)
 
-	// Pack the function call data
+	// Convert *big.Int to [32]byte for ABI compatibility
+	var rBytes [32]byte
+	var sBytes [32]byte
+
+	if sig.R != nil {
+		rBytes = common.BigToHash(sig.R)
+	}
+	if sig.S != nil {
+		sBytes = common.BigToHash(sig.S)
+	}
+
+	// Pack the function call data with correct types
 	data, err := usdcABI.Pack(
 		"transferWithAuthorization",
 		fromAddr,
@@ -548,8 +560,8 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 		validBefore,
 		nonce,
 		v,
-		sig.R,
-		sig.S,
+		rBytes,
+		sBytes,
 	)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to pack function call: %w", err)

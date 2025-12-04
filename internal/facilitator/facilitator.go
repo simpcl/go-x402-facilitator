@@ -12,9 +12,9 @@ import (
 
 // Facilitator is the main facilitator service
 type Facilitator struct {
-	config    *config.Config
+	config     *config.Config
 	evmClients map[string]*EVMFacilitator
-	mu        sync.RWMutex
+	mu         sync.RWMutex
 }
 
 // New creates a new facilitator instance
@@ -86,14 +86,14 @@ func (f *Facilitator) getRPCURL(network string) (string, error) {
 
 	// Fallback to hardcoded URLs
 	rpcURLs := map[string]string{
-		"ethereum-sepolia":  "https://sepolia.infura.io/v3/your-project-id",
-		"ethereum":          "https://mainnet.infura.io/v3/your-project-id",
-		"base-sepolia":      "https://sepolia.base.org",
-		"base":              "https://mainnet.base.org",
-		"avalanche-fuji":    "https://api.avax-test.network/ext/bc/C/rpc",
-		"avalanche":         "https://api.avax.network/ext/bc/C/rpc",
-		"polygon":           "https://polygon-rpc.com",
-		"polygon-mumbai":    "https://rpc-mumbai.maticvigil.com",
+		"ethereum-sepolia": "https://sepolia.infura.io/v3/your-project-id",
+		"ethereum":         "https://mainnet.infura.io/v3/your-project-id",
+		"base-sepolia":     "https://sepolia.base.org",
+		"base":             "https://mainnet.base.org",
+		"avalanche-fuji":   "https://api.avax-test.network/ext/bc/C/rpc",
+		"avalanche":        "https://api.avax.network/ext/bc/C/rpc",
+		"polygon":          "https://polygon-rpc.com",
+		"polygon-mumbai":   "https://rpc-mumbai.maticvigil.com",
 	}
 
 	if url, exists := rpcURLs[network]; exists {
@@ -109,9 +109,9 @@ func (f *Facilitator) Verify(ctx context.Context, req *facilitatorTypes.VerifyRe
 	// Validate scheme
 	if err := utils.ValidateScheme(req.PaymentRequirements.Scheme); err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "unsupported_scheme",
-			Payer:        "",
+			Payer:         "",
 		}, nil
 	}
 
@@ -121,9 +121,9 @@ func (f *Facilitator) Verify(ctx context.Context, req *facilitatorTypes.VerifyRe
 		return f.verifyExact(ctx, req)
 	default:
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "unsupported_scheme",
-			Payer:        "",
+			Payer:         "",
 		}, nil
 	}
 }
@@ -133,11 +133,11 @@ func (f *Facilitator) Settle(ctx context.Context, req *facilitatorTypes.VerifyRe
 	// Validate scheme
 	if err := utils.ValidateScheme(req.PaymentRequirements.Scheme); err != nil {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "unsupported_scheme",
 			Transaction: "",
-			Network:    req.PaymentPayload.Network,
-			Payer:      "",
+			Network:     req.PaymentPayload.Network,
+			Payer:       "",
 		}, nil
 	}
 
@@ -147,11 +147,11 @@ func (f *Facilitator) Settle(ctx context.Context, req *facilitatorTypes.VerifyRe
 		return f.settleExact(ctx, req)
 	default:
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "unsupported_scheme",
 			Transaction: "",
-			Network:    req.PaymentPayload.Network,
-			Payer:      "",
+			Network:     req.PaymentPayload.Network,
+			Payer:       "",
 		}, nil
 	}
 }
@@ -189,18 +189,18 @@ func (f *Facilitator) DiscoverResources(ctx context.Context, resourceType string
 			X402Version: 1,
 			Accepts: []facilitatorTypes.PaymentRequirements{
 				{
-					Scheme:             "exact",
-					Network:            "base-sepolia",
-					MaxAmountRequired:  "10000",
-					Resource:           "https://api.example.com/premium-data",
-					Description:        "Access to premium market data",
-					MimeType:           "application/json",
-					PayTo:              "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
-					MaxTimeoutSeconds:  60,
-					Asset:              "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+					Scheme:            "exact",
+					Network:           "base-sepolia",
+					MaxAmountRequired: "10000",
+					Resource:          "https://api.example.com/premium-data",
+					Description:       "Access to premium market data",
+					MimeType:          "application/json",
+					PayTo:             "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+					MaxTimeoutSeconds: 60,
+					Asset:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 					Extra: map[string]interface{}{
-						"name":    "USDC",
-						"version": "2",
+						"name":    "GenericToken",
+						"version": "1",
 					},
 				},
 			},
@@ -238,9 +238,9 @@ func (f *Facilitator) verifyExact(ctx context.Context, req *facilitatorTypes.Ver
 
 	if !exists {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "unsupported_network",
-			Payer:        "",
+			Payer:         "",
 		}, nil
 	}
 
@@ -255,11 +255,11 @@ func (f *Facilitator) settleExact(ctx context.Context, req *facilitatorTypes.Ver
 
 	if !exists {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "unsupported_network",
 			Transaction: "",
-			Network:    req.PaymentPayload.Network,
-			Payer:      "",
+			Network:     req.PaymentPayload.Network,
+			Payer:       "",
 		}, nil
 	}
 
