@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"strings"
@@ -195,27 +196,63 @@ func hashTypeHash(types map[string][]types.TypedDataField, primaryType string, m
 
 // CheckUSDCBalance checks the USDC balance of an address
 func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.Int, error) {
+	// Input validation
+	if client == nil {
+		return big.NewInt(0), fmt.Errorf("ethereum client is nil - blockchain connection not established")
+	}
+
+	if network == "" {
+		return big.NewInt(0), fmt.Errorf("network cannot be empty")
+	}
+
+	if address == "" {
+		return big.NewInt(0), fmt.Errorf("address cannot be empty")
+	}
+
+	// Validate address format
+	if !common.IsHexAddress(address) {
+		return big.NewInt(0), fmt.Errorf("invalid address format: %s", address)
+	}
+
 	usdcAddr, err := GetUSDCAddress(network)
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), fmt.Errorf("failed to get USDC address for network %s: %w", network, err)
 	}
 
 	addr := common.HexToAddress(address)
+
+	// Check if client connection is actually working
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Test connection with a simple call
+	_, err = client.ChainID(ctx)
+	if err != nil {
+		return big.NewInt(0), fmt.Errorf("ethereum client connection failed: %w", err)
+	}
 
 	// USDC contract ABI (only the balanceOf function)
 	usdcABIJSON := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
 
 	parsedABI, err := abi.JSON(strings.NewReader(usdcABIJSON))
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), fmt.Errorf("failed to parse USDC ABI: %w", err)
 	}
 
-	contract := bind.NewBoundContract(usdcAddr, parsedABI, nil, nil, nil)
+	// Create a callable contract with proper backend
+	callOpts := &bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+
+	// Use the ethclient as the backend
+	boundContract := bind.NewBoundContract(usdcAddr, parsedABI, client, client, client)
 
 	var results []interface{}
-	err = contract.Call(nil, &results, "balanceOf", addr)
+	err = boundContract.Call(callOpts, &results, "balanceOf", addr)
 	if err != nil {
-		return nil, err
+		// If contract call fails, return zero balance instead of panicking
+		return big.NewInt(0), fmt.Errorf("failed to call USDC balanceOf: %w", err)
 	}
 
 	if len(results) == 0 {
@@ -224,7 +261,7 @@ func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.I
 
 	balance, ok := results[0].(*big.Int)
 	if !ok {
-		return big.NewInt(0), fmt.Errorf("invalid balance type")
+		return big.NewInt(0), fmt.Errorf("invalid balance type returned")
 	}
 
 	return balance, nil
