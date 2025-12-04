@@ -128,30 +128,32 @@ func RecoverAddress(typedData *types.TypedData, signatureHex string) (common.Add
 
 	// Adjust v to be 27 or 28
 	v := sig.V.Uint64()
-	if v != 27 && v != 28 {
-		if v == 0 || v == 1 {
-			v += 27
-		} else {
-			return common.Address{}, fmt.Errorf("invalid v value: %d", v)
-		}
+	log.Info().Msgf("Adjusted v: %d", v)
+	if v >= 27 {
+		v = v - 27
+	}
+	if v != 0 && v != 1 {
+		return common.Address{}, fmt.Errorf("invalid v value: %d", v)
 	}
 	signature = append(signature, byte(v))
 
-	typedDataHash, err := hashTypedData(typedData)
+	typedDataHash, err := HashTypedData(typedData)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to hash typedData")
 		return common.Address{}, err
 	}
 
 	recoveredAddr, err := crypto.SigToPub(typedDataHash[:], signature)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to sig to pub")
 		return common.Address{}, err
 	}
 
 	return crypto.PubkeyToAddress(*recoveredAddr), nil
 }
 
-// hashTypedData creates the hash of EIP-712 typed data
-func hashTypedData(typedData *types.TypedData) (common.Hash, error) {
+// HashTypedData creates the hash of EIP-712 typed data
+func HashTypedData(typedData *types.TypedData) (common.Hash, error) {
 	domainSeparator, err := hashDomainSeparator(&typedData.Domain)
 	if err != nil {
 		return common.Hash{}, err
