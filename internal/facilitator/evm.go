@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"crypto/ecdsa"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -14,6 +15,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/rs/zerolog/log"
 	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
 	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
@@ -67,18 +69,18 @@ func (f *EVMFacilitator) Verify(ctx context.Context, payload *facilitatorTypes.P
 	// Validate scheme
 	if payload.Scheme != SCHEME_EXACT || requirements.Scheme != SCHEME_EXACT {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "unsupported_scheme",
-			Payer:        "",
+			Payer:         "",
 		}, nil
 	}
 
 	// Validate network
 	if err := utils.ValidateNetwork(requirements.Network); err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "invalid_network",
-			Payer:        "",
+			Payer:         "",
 		}, nil
 	}
 
@@ -86,61 +88,62 @@ func (f *EVMFacilitator) Verify(ctx context.Context, payload *facilitatorTypes.P
 	exactPayload, err := f.extractExactEVMPayload(payload)
 	if err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "invalid_payload_format",
-			Payer:        "",
+			Payer:         "",
 		}, nil
 	}
 
 	// Verify typed data signature
 	if err := f.verifySignature(exactPayload, requirements); err != nil {
+		log.Error().Err(err).Msg("Invalid signature")
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "invalid_signature",
-			Payer:        exactPayload.Authorization.From,
+			Payer:         exactPayload.Authorization.From,
 		}, nil
 	}
 
 	// Verify recipient matches
 	if err := f.verifyRecipient(exactPayload, requirements); err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "recipient_mismatch",
-			Payer:        exactPayload.Authorization.From,
+			Payer:         exactPayload.Authorization.From,
 		}, nil
 	}
 
 	// Verify time window
 	if err := f.verifyTimeWindow(exactPayload); err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: err.Error(),
-			Payer:        exactPayload.Authorization.From,
+			Payer:         exactPayload.Authorization.From,
 		}, nil
 	}
 
 	// Verify sufficient balance
 	if err := f.verifyBalance(ctx, exactPayload, requirements); err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "insufficient_funds",
-			Payer:        exactPayload.Authorization.From,
+			Payer:         exactPayload.Authorization.From,
 		}, nil
 	}
 
 	// Verify value meets requirements
 	if err := f.verifyValue(exactPayload, requirements); err != nil {
 		return &facilitatorTypes.VerifyResponse{
-			IsValid:      false,
+			IsValid:       false,
 			InvalidReason: "insufficient_value",
-			Payer:        exactPayload.Authorization.From,
+			Payer:         exactPayload.Authorization.From,
 		}, nil
 	}
 
 	return &facilitatorTypes.VerifyResponse{
-		IsValid:      true,
+		IsValid:       true,
 		InvalidReason: "",
-		Payer:        exactPayload.Authorization.From,
+		Payer:         exactPayload.Authorization.From,
 	}, nil
 }
 
@@ -150,32 +153,32 @@ func (f *EVMFacilitator) Settle(ctx context.Context, payload *facilitatorTypes.P
 	verifyResp, err := f.Verify(ctx, payload, requirements)
 	if err != nil {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "verification_failed",
 			Transaction: "",
-			Network:    payload.Network,
-			Payer:      "",
+			Network:     payload.Network,
+			Payer:       "",
 		}, err
 	}
 
 	if !verifyResp.IsValid {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: verifyResp.InvalidReason,
 			Transaction: "",
-			Network:    payload.Network,
-			Payer:      verifyResp.Payer,
+			Network:     payload.Network,
+			Payer:       verifyResp.Payer,
 		}, nil
 	}
 
 	exactPayload, err := f.extractExactEVMPayload(payload)
 	if err != nil {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "invalid_payload",
 			Transaction: "",
-			Network:    payload.Network,
-			Payer:      "",
+			Network:     payload.Network,
+			Payer:       "",
 		}, err
 	}
 
@@ -183,11 +186,11 @@ func (f *EVMFacilitator) Settle(ctx context.Context, payload *facilitatorTypes.P
 	txHash, err := f.executeTransferWithAuthorization(ctx, exactPayload, requirements)
 	if err != nil {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "transaction_failed",
 			Transaction: "",
-			Network:    payload.Network,
-			Payer:      exactPayload.Authorization.From,
+			Network:     payload.Network,
+			Payer:       exactPayload.Authorization.From,
 		}, err
 	}
 
@@ -195,30 +198,30 @@ func (f *EVMFacilitator) Settle(ctx context.Context, payload *facilitatorTypes.P
 	receipt, err := f.waitForTransaction(ctx, txHash)
 	if err != nil {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "confirmation_failed",
 			Transaction: txHash.Hex(),
-			Network:    payload.Network,
-			Payer:      exactPayload.Authorization.From,
+			Network:     payload.Network,
+			Payer:       exactPayload.Authorization.From,
 		}, err
 	}
 
 	if receipt.Status != ReceiptStatusSuccess {
 		return &facilitatorTypes.SettleResponse{
-			Success:    false,
+			Success:     false,
 			ErrorReason: "transaction_reverted",
 			Transaction: txHash.Hex(),
-			Network:    payload.Network,
-			Payer:      exactPayload.Authorization.From,
+			Network:     payload.Network,
+			Payer:       exactPayload.Authorization.From,
 		}, nil
 	}
 
 	return &facilitatorTypes.SettleResponse{
-		Success:    true,
+		Success:     true,
 		ErrorReason: "",
 		Transaction: txHash.Hex(),
-		Network:    payload.Network,
-		Payer:      exactPayload.Authorization.From,
+		Network:     payload.Network,
+		Payer:       exactPayload.Authorization.From,
 	}, nil
 }
 

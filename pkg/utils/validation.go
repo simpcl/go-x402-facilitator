@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/rs/zerolog/log"
 	"github.com/x402/go-x402-facilitator/pkg/types"
 )
 
@@ -98,7 +99,7 @@ func ParseSignature(signatureHex string) (*types.Signature, error) {
 	}
 
 	if len(signature) != 65 {
-		return nil, fmt.Errorf("signature must be 65 bytes long")
+		return nil, fmt.Errorf("signature must be 65 bytes long: %d", len(signature))
 	}
 
 	r := new(big.Int).SetBytes(signature[:32])
@@ -116,6 +117,7 @@ func ParseSignature(signatureHex string) (*types.Signature, error) {
 func RecoverAddress(typedData *types.TypedData, signatureHex string) (common.Address, error) {
 	sig, err := ParseSignature(signatureHex)
 	if err != nil {
+		log.Error().Err(err).Msgf("Failed to parse signature: %s", signatureHex)
 		return common.Address{}, err
 	}
 
@@ -225,7 +227,6 @@ func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.I
 
 	return balance, nil
 }
-
 
 // IsValidTimestamp checks if a timestamp is within the valid range
 func IsValidTimestamp(validAfter, validBefore string) (bool, string) {
