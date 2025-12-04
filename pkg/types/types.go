@@ -1,46 +1,45 @@
 package types
 
 import (
-	"math/big"
 	"time"
 )
 
 // PaymentPayload represents the signed payment payload sent by the client
 type PaymentPayload struct {
-	X402Version int                    `json:"x402Version"`
-	Scheme      string                 `json:"scheme"`
-	Network     string                 `json:"network"`
-	Payload     interface{}            `json:"payload"`
+	X402Version int         `json:"x402Version"`
+	Scheme      string      `json:"scheme"`
+	Network     string      `json:"network"`
+	Payload     interface{} `json:"payload"`
 }
 
 // ExactEVMPayload represents the specific payload structure for exact scheme on EVM
 type ExactEVMPayload struct {
-	Signature      string        `json:"signature"`
-	Authorization  Authorization `json:"authorization"`
+	Signature     string        `json:"signature"`
+	Authorization Authorization `json:"authorization"`
 }
 
 // Authorization represents the transfer authorization details
 type Authorization struct {
-	From       string `json:"from"`
-	To         string `json:"to"`
-	Value      string `json:"value"`
-	ValidAfter string `json:"validAfter"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Value       string `json:"value"`
+	ValidAfter  string `json:"validAfter"`
 	ValidBefore string `json:"validBefore"`
-	Nonce      string `json:"nonce"`
+	Nonce       string `json:"nonce"`
 }
 
 // PaymentRequirements represents the payment requirements from the resource server
 type PaymentRequirements struct {
-	Scheme             string                 `json:"scheme"`
-	Network            string                 `json:"network"`
-	MaxAmountRequired  string                 `json:"maxAmountRequired"`
-	Resource           string                 `json:"resource"`
-	Description        string                 `json:"description"`
-	MimeType           string                 `json:"mimeType"`
-	PayTo              string                 `json:"payTo"`
-	MaxTimeoutSeconds  int                    `json:"maxTimeoutSeconds"`
-	Asset              string                 `json:"asset"`
-	Extra              map[string]interface{} `json:"extra,omitempty"`
+	Scheme            string                 `json:"scheme"`
+	Network           string                 `json:"network"`
+	MaxAmountRequired string                 `json:"maxAmountRequired"`
+	Resource          string                 `json:"resource"`
+	Description       string                 `json:"description"`
+	MimeType          string                 `json:"mimeType"`
+	PayTo             string                 `json:"payTo"`
+	MaxTimeoutSeconds int                    `json:"maxTimeoutSeconds"`
+	Asset             string                 `json:"asset"`
+	Extra             map[string]interface{} `json:"extra,omitempty"`
 }
 
 // VerifyRequest represents the request body for /verify endpoint
@@ -51,18 +50,18 @@ type VerifyRequest struct {
 
 // VerifyResponse represents the response from /verify endpoint
 type VerifyResponse struct {
-	IsValid      bool   `json:"isValid"`
+	IsValid       bool   `json:"isValid"`
 	InvalidReason string `json:"invalidReason,omitempty"`
-	Payer        string `json:"payer"`
+	Payer         string `json:"payer"`
 }
 
 // SettleResponse represents the response from /settle endpoint
 type SettleResponse struct {
-	Success    bool   `json:"success"`
+	Success     bool   `json:"success"`
 	ErrorReason string `json:"errorReason,omitempty"`
 	Transaction string `json:"transaction"`
-	Network    string `json:"network"`
-	Payer      string `json:"payer"`
+	Network     string `json:"network"`
+	Payer       string `json:"payer"`
 }
 
 // SupportedKind represents a supported payment scheme and network combination
@@ -80,11 +79,11 @@ type SupportedResponse struct {
 
 // DiscoveryItem represents an item in the discovery response
 type DiscoveryItem struct {
-	Resource    string                 `json:"resource"`
-	Type        string                 `json:"type"`
-	X402Version int                    `json:"x402Version"`
-	Accepts     []PaymentRequirements  `json:"accepts"`
-	LastUpdated int64                  `json:"lastUpdated"`
+	Resource    string                `json:"resource"`
+	Type        string                `json:"type"`
+	X402Version int                   `json:"x402Version"`
+	Accepts     []PaymentRequirements `json:"accepts"`
+	LastUpdated int64                 `json:"lastUpdated"`
 }
 
 // DiscoveryResponse represents the response from /discovery/resources endpoint
@@ -102,38 +101,9 @@ type ErrorResponse struct {
 
 // ChainConfig represents configuration for a specific blockchain
 type ChainConfig struct {
-	ChainID     int64  `json:"chainId"`
-	RPCURL      string `json:"rpcUrl"`
-	USDCAddress string `json:"usdcAddress"`
-	USDCName    string `json:"usdcName"`
+	ChainID     int64         `json:"chainId"`
+	RPCURL      string        `json:"rpcUrl"`
+	USDCAddress string        `json:"usdcAddress"`
+	USDCName    string        `json:"usdcName"`
 	BlockTime   time.Duration `json:"blockTime"`
-}
-
-// TypedData represents EIP-712 typed data structure
-type TypedData struct {
-	Types       map[string][]TypedDataField `json:"types"`
-	PrimaryType string                      `json:"primaryType"`
-	Domain      TypedDataDomain             `json:"domain"`
-	Message     map[string]interface{}      `json:"message"`
-}
-
-// TypedDataField represents a field in EIP-712 typed data
-type TypedDataField struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-// TypedDataDomain represents the domain in EIP-712 typed data
-type TypedDataDomain struct {
-	Name              string `json:"name"`
-	Version           string `json:"version"`
-	ChainID           *big.Int `json:"chainId"`
-	VerifyingContract string `json:"verifyingContract"`
-}
-
-// Signature represents a parsed Ethereum signature
-type Signature struct {
-	V *big.Int `json:"v"`
-	R *big.Int `json:"r"`
-	S *big.Int `json:"s"`
 }

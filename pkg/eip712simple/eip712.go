@@ -25,6 +25,10 @@ type TypedDataField struct {
 	Type string `json:"type"`
 }
 
+type Types map[string][]TypedDataField
+
+type TypedDataMessage map[string]interface{}
+
 // TypedData represents EIP-712 typed data structure
 type TypedData struct {
 	Types       map[string][]TypedDataField `json:"types"`
@@ -32,10 +36,6 @@ type TypedData struct {
 	Domain      TypedDataDomain             `json:"domain"`
 	Message     map[string]interface{}      `json:"message"`
 }
-
-type Types map[string][]TypedDataField
-
-type TypedDataMessage map[string]interface{}
 
 // Signature represents a parsed Ethereum signature
 type Signature struct {
@@ -74,24 +74,21 @@ func RecoverAddress(typedData *TypedData, signatureHex string) (common.Address, 
 		return common.Address{}, err
 	}
 
-	// Convert signature to 65-byte format with proper v value
+	v := sig.V.Uint64()
+
 	var signature []byte
 	signature = append(signature, sig.R.Bytes()...)
 	signature = append(signature, sig.S.Bytes()...)
+	signature = append(signature, byte(v))
 
 	// Adjust v to be 27 or 28
-	v := sig.V.Uint64()
 	log.Info().Msgf("Adjusted v: %d", v)
-	// if v >= 27 {
-	// 	v = v - 27
-	// }
-	// if v != 0 && v != 1 {
-	// 	return common.Address{}, fmt.Errorf("invalid v value: %d", v)
-	// }
-	if v != 0 && v != 1 && v != 27 && v != 28 {
+	if v == 0 || v == 1 {
+		v = v + 27
+	}
+	if v != 27 && v != 28 {
 		return common.Address{}, fmt.Errorf("invalid v value: %d", v)
 	}
-	signature = append(signature, byte(v))
 
 	typedDataHash, err := HashTypedData(typedData)
 	if err != nil {
