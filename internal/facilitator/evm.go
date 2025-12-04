@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
-	eip712simple "github.com/x402/go-x402-facilitator/pkg/eip712simple"
+	eip712full "github.com/x402/go-x402-facilitator/pkg/eip712full"
 	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
 	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
@@ -330,8 +330,8 @@ func (f *EVMFacilitator) extractExactEVMPayload(payload *facilitatorTypes.Paymen
 // verifySignature verifies the EIP-712 signature
 func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPayload, requirements *facilitatorTypes.PaymentRequirements) error {
 	// Create typed data for verification
-	typedData := &eip712simple.TypedData{
-		Types: map[string][]eip712simple.TypedDataField{
+	typedData := &eip712full.TypedData{
+		Types: map[string][]eip712full.TypedDataField{
 			"TransferWithAuthorization": {
 				{Name: "from", Type: "address"},
 				{Name: "to", Type: "address"},
@@ -342,11 +342,11 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 			},
 		},
 		PrimaryType: "TransferWithAuthorization",
-		Domain: eip712simple.TypedDataDomain{
+		Domain: eip712full.TypedDataDomain{
 			Name:              "GenericToken",
 			Version:           "1",
-			ChainID:           big.NewInt(f.chainID),
-			VerifyingContract: requirements.Asset,
+			ChainId:           uint64(f.chainID),
+			VerifyingContract: common.HexToAddress(requirements.Asset),
 		},
 		Message: map[string]interface{}{
 			"from":        payload.Authorization.From,
@@ -359,7 +359,7 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 	}
 
 	// Recover the address
-	recoveredAddr, err := eip712simple.RecoverAddress(typedData, payload.Signature)
+	recoveredAddr, err := eip712full.RecoverAddress(typedData, payload.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to recover address: %w", err)
 	}
@@ -518,7 +518,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	}
 
 	// Parse signature
-	sig, err := eip712simple.ParseSignature(payload.Signature)
+	sig, err := eip712full.ParseSignature(payload.Signature)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to parse signature: %w", err)
 	}
