@@ -10,11 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/rs/zerolog/log"
-	"github.com/x402/go-x402-facilitator/pkg/types"
 )
 
 // SupportedEVMNetworks lists all supported EVM networks
@@ -90,111 +86,6 @@ func GetUSDCAddress(network string) (common.Address, error) {
 		return common.Address{}, fmt.Errorf("USDC address for network %s not found", network)
 	}
 	return common.HexToAddress(address), nil
-}
-
-// ParseSignature parses an Ethereum signature
-func ParseSignature(signatureHex string) (*types.Signature, error) {
-	signature, err := hexutil.Decode(signatureHex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid signature hex: %w", err)
-	}
-
-	if len(signature) != 65 {
-		return nil, fmt.Errorf("signature must be 65 bytes long: %d", len(signature))
-	}
-
-	r := new(big.Int).SetBytes(signature[:32])
-	s := new(big.Int).SetBytes(signature[32:64])
-	v := new(big.Int).SetBytes([]byte{signature[64]})
-
-	return &types.Signature{
-		V: v,
-		R: r,
-		S: s,
-	}, nil
-}
-
-// RecoverAddress recovers the signing address from EIP-712 typed data
-func RecoverAddress(typedData *types.TypedData, signatureHex string) (common.Address, error) {
-	sig, err := ParseSignature(signatureHex)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed to parse signature: %s", signatureHex)
-		return common.Address{}, err
-	}
-
-	// Convert signature to 65-byte format with proper v value
-	var signature []byte
-	signature = append(signature, sig.R.Bytes()...)
-	signature = append(signature, sig.S.Bytes()...)
-
-	// Adjust v to be 27 or 28
-	v := sig.V.Uint64()
-	log.Info().Msgf("Adjusted v: %d", v)
-	// if v >= 27 {
-	// 	v = v - 27
-	// }
-	// if v != 0 && v != 1 {
-	// 	return common.Address{}, fmt.Errorf("invalid v value: %d", v)
-	// }
-	if v != 0 && v != 1 && v != 27 && v != 28 {
-		return common.Address{}, fmt.Errorf("invalid v value: %d", v)
-	}
-	signature = append(signature, byte(v))
-
-	typedDataHash, err := HashTypedData(typedData)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to hash typedData")
-		return common.Address{}, err
-	}
-
-	recoveredAddr, err := crypto.SigToPub(typedDataHash[:], signature)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to sig to pub")
-		return common.Address{}, err
-	}
-
-	return crypto.PubkeyToAddress(*recoveredAddr), nil
-}
-
-// HashTypedData creates the hash of EIP-712 typed data
-func HashTypedData(typedData *types.TypedData) (common.Hash, error) {
-	domainSeparator, err := hashDomainSeparator(&typedData.Domain)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	typeHash, err := hashTypeHash(typedData.Types, typedData.PrimaryType, typedData.Message)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return crypto.Keccak256Hash(
-		append([]byte{0x19, 0x01}, append(domainSeparator[:], typeHash[:]...)...),
-	), nil
-}
-
-// hashDomainSeparator creates the domain separator hash
-func hashDomainSeparator(domain *types.TypedDataDomain) (common.Hash, error) {
-	domainData := []string{
-		domain.Name,
-		domain.Version,
-		domain.ChainID.String(),
-		domain.VerifyingContract,
-	}
-
-	return crypto.Keccak256Hash([]byte(strings.Join(domainData, ""))), nil
-}
-
-// hashTypeHash creates the hash for the specific type and message
-func hashTypeHash(types map[string][]types.TypedDataField, primaryType string, message map[string]interface{}) (common.Hash, error) {
-	// This is a simplified version - in production, you'd want a more complete implementation
-	data := []byte(primaryType)
-	for _, field := range types[primaryType] {
-		if value, exists := message[field.Name]; exists {
-			data = append(data, []byte(fmt.Sprintf("%v", value))...)
-		}
-	}
-	return crypto.Keccak256Hash(data), nil
 }
 
 // CheckUSDCBalance checks the USDC balance of an address
