@@ -16,40 +16,16 @@ import (
 // SupportedEVMNetworks lists all supported EVM networks
 var SupportedEVMNetworks = []string{
 	"localhost",
-	"ethereum-sepolia",
-	"ethereum",
-	"base-sepolia",
-	"base",
-	"avalanche-fuji",
-	"avalanche",
-	"polygon",
-	"polygon-mumbai",
 }
 
 // SupportedChains maps network names to chain IDs
 var SupportedChains = map[string]int64{
-	"localhost":        1337,
-	"ethereum-sepolia": 11155111,
-	"ethereum":         1,
-	"base-sepolia":     84532,
-	"base":             8453,
-	"avalanche-fuji":   43113,
-	"avalanche":        43114,
-	"polygon":          137,
-	"polygon-mumbai":   80001,
+	"localhost": 1337,
 }
 
 // USDCContractAddresses maps network names to USDC contract addresses
 var USDCContractAddresses = map[string]string{
-	"localhost":        "0xC35898F0f03C0894107869844d7467Af417aD868",
-	"ethereum-sepolia": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-	"ethereum":         "0xA0b86a33E6417c5C2c0a9b0B7F8e0B7e8b4a0c8e",
-	"base-sepolia":     "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-	"base":             "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531770b923",
-	"avalanche-fuji":   "0x5425890298aedC1c239A4317bb48d42A35f0A3C4",
-	"avalanche":        "0xB97EF9Ef8734C71904D8002F8b6Bc66Da9A84873",
-	"polygon":          "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-	"polygon-mumbai":   "0xe6a84267191545774313146139d3d8395ca4b5d1",
+	"localhost": "0xC35898F0f03C0894107869844d7467Af417aD868",
 }
 
 // ValidateNetwork checks if the network is supported

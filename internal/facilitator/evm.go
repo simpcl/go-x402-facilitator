@@ -331,6 +331,12 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 	// Create typed data for verification
 	typedData := &eip712full.TypedData{
 		Types: map[string][]eip712full.TypedDataField{
+			"EIP712Domain": {
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
 			"TransferWithAuthorization": {
 				{Name: "from", Type: "address"},
 				{Name: "to", Type: "address"},

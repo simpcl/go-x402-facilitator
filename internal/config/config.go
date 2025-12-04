@@ -10,12 +10,12 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server       ServerConfig       `mapstructure:"server"`
-	Ethereum     EthereumConfig     `mapstructure:"ethereum"`
-	Auth         AuthConfig         `mapstructure:"auth"`
-	Monitoring   MonitoringConfig   `mapstructure:"monitoring"`
-	USDCContract map[string]string  `mapstructure:"usdc_contract"`
-	Supported    SupportedConfig    `mapstructure:"supported"`
+	Server       ServerConfig      `mapstructure:"server"`
+	Ethereum     EthereumConfig    `mapstructure:"ethereum"`
+	Auth         AuthConfig        `mapstructure:"auth"`
+	Monitoring   MonitoringConfig  `mapstructure:"monitoring"`
+	USDCContract map[string]string `mapstructure:"usdc_contract"`
+	Supported    SupportedConfig   `mapstructure:"supported"`
 }
 
 // ServerConfig represents HTTP server configuration
@@ -38,10 +38,10 @@ type EthereumConfig struct {
 
 // AuthConfig represents authentication configuration
 type AuthConfig struct {
-	Enabled    bool     `mapstructure:"enabled"`
-	APIKeys    []string `mapstructure:"api_keys"`
-	JWTSecret  string   `mapstructure:"jwt_secret"`
-	RequireAuth bool    `mapstructure:"require_auth"`
+	Enabled     bool     `mapstructure:"enabled"`
+	APIKeys     []string `mapstructure:"api_keys"`
+	JWTSecret   string   `mapstructure:"jwt_secret"`
+	RequireAuth bool     `mapstructure:"require_auth"`
 }
 
 // MonitoringConfig represents monitoring and observability configuration
@@ -116,7 +116,7 @@ func setDefaults() {
 	viper.SetDefault("server.idle_timeout", "120s")
 
 	// Ethereum defaults
-	viper.SetDefault("ethereum.default_rpc_url", "https://eth-mainnet.alchemyapi.io/v2/your-api-key")
+	viper.SetDefault("ethereum.default_rpc_url", "http://127.0.0.1:8545")
 	viper.SetDefault("ethereum.gas_limit", 100000)
 	viper.SetDefault("ethereum.gas_price", "")
 
@@ -134,21 +134,11 @@ func setDefaults() {
 	// Supported defaults
 	viper.SetDefault("supported.schemes", []string{"exact"})
 	viper.SetDefault("supported.networks", []string{
-		"ethereum-sepolia",
-		"ethereum",
-		"base-sepolia",
-		"base",
-		"avalanche-fuji",
-		"avalanche",
+		"localhost",
 	})
 
 	// USDC Contract addresses
-	viper.SetDefault("usdc_contract.ethereum-sepolia", "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238")
-	viper.SetDefault("usdc_contract.ethereum", "0xA0b86a33E6417c5C2c0a9b0B7F8e0B7e8b4a0c8e")
-	viper.SetDefault("usdc_contract.base-sepolia", "0x036CbD53842c5426634e7929541eC2318f3dCF7e")
-	viper.SetDefault("usdc_contract.base", "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531770b923")
-	viper.SetDefault("usdc_contract.avalanche-fuji", "0x5425890298aedC1c239A4317bb48d42A35f0A3C4")
-	viper.SetDefault("usdc_contract.avalanche", "0xB97EF9Ef8734C71904D8002F8b6Bc66Da9A84873")
+	viper.SetDefault("usdc_contract.localhost", "0xC35898F0f03C0894107869844d7467Af417aD868")
 }
 
 // validateConfig validates the configuration
@@ -181,12 +171,7 @@ func (c *Config) GetSupportedNetworks() []string {
 		return c.Supported.Networks
 	}
 	return []string{
-		"ethereum-sepolia",
-		"ethereum",
-		"base-sepolia",
-		"base",
-		"avalanche-fuji",
-		"avalanche",
+		"localhost",
 	}
 }
 
