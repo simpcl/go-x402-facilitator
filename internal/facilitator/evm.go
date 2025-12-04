@@ -9,7 +9,6 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -574,19 +573,20 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	}
 
 	// Create and send transaction
-	msg := ethereum.CallMsg{
-		From:  f.auth.From,
-		To:    &f.usdcAddr,
-		Data:  data,
-		Gas:   0, // Will be set by gas limit estimation
-		Value: big.NewInt(0),
-	}
+	// msg := ethereum.CallMsg{
+	// 	From:  f.auth.From,
+	// 	To:    &f.usdcAddr,
+	// 	Data:  data,
+	// 	Gas:   0,     // Will be set by gas limit estimation
+	// 	Value: value, //big.NewInt(0),
+	// }
 
 	// Estimate gas
-	gasLimit, err := f.client.EstimateGas(ctx, msg)
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to estimate gas: %w", err)
-	}
+	// gasLimit, err := f.client.EstimateGas(ctx, msg)
+	// if err != nil {
+	// 	return common.Hash{}, fmt.Errorf("failed to estimate gas: %w", err)
+	// }
+	gasLimit := uint64(210000)
 
 	// Get transaction nonce - use pending nonce if not set in auth
 	var txNonce uint64
@@ -618,7 +618,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	tx := ethTypes.NewTransaction(
 		txNonce,
 		f.usdcAddr,
-		big.NewInt(0),
+		value, // big.NewInt(0),
 		gasLimit,
 		gasPrice,
 		data,
