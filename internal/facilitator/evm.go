@@ -493,6 +493,11 @@ func (f *EVMFacilitator) verifyValue(payload *facilitatorTypes.ExactEVMPayload, 
 
 // executeTransferWithAuthorization executes the USDC transferWithAuthorization function
 func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, payload *facilitatorTypes.ExactEVMPayload, requirements *facilitatorTypes.PaymentRequirements) (common.Hash, error) {
+	// Check if facilitator has private key for transaction signing
+	if f.auth == nil {
+		return common.Hash{}, fmt.Errorf("no private key configured for transaction signing")
+	}
+
 	// USDC contract ABI (transferWithAuthorization function)
 	usdcABIString := `[{
 		"name": "transferWithAuthorization",
@@ -573,7 +578,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 		From:  f.auth.From,
 		To:    &f.usdcAddr,
 		Data:  data,
-		Gas:   f.auth.GasLimit,
+		Gas:   0, // Will be set by gas limit estimation
 		Value: big.NewInt(0),
 	}
 
@@ -583,29 +588,80 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 		return common.Hash{}, fmt.Errorf("failed to estimate gas: %w", err)
 	}
 
+	// Get transaction nonce - use pending nonce if not set in auth
+	var txNonce uint64
+	if f.auth.Nonce != nil {
+		txNonce = f.auth.Nonce.Uint64()
+	} else {
+		// Get pending nonce from the network
+		pendingNonce, err := f.client.PendingNonceAt(ctx, f.auth.From)
+		if err != nil {
+			return common.Hash{}, fmt.Errorf("failed to get pending nonce: %w", err)
+		}
+		txNonce = pendingNonce
+	}
+
+	// Determine gas price - use suggested price if not set in auth
+	var gasPrice *big.Int
+	if f.auth.GasPrice != nil {
+		gasPrice = f.auth.GasPrice
+	} else {
+		// Get suggested gas price
+		suggestedPrice, err := f.client.SuggestGasPrice(ctx)
+		if err != nil {
+			return common.Hash{}, fmt.Errorf("failed to get suggested gas price: %w", err)
+		}
+		gasPrice = suggestedPrice
+	}
+
 	// Send transaction
 	tx := ethTypes.NewTransaction(
-		f.auth.Nonce.Uint64(),
+		txNonce,
 		f.usdcAddr,
 		big.NewInt(0),
 		gasLimit,
-		f.auth.GasPrice,
+		gasPrice,
 		data,
 	)
-	err = f.client.SendTransaction(ctx, tx)
+
+	// Sign the transaction with EIP-155 replay protection
+	signedTx, err := f.auth.Signer(f.auth.From, tx)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to sign transaction: %w", err)
+	}
+
+	err = f.client.SendTransaction(ctx, signedTx)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to send transaction: %w", err)
 	}
 
-	return tx.Hash(), nil
+	log.Info().Str("txHash", signedTx.Hash().Hex()).Msg("Transaction sent successfully")
+	return signedTx.Hash(), nil
 }
 
 // waitForTransaction waits for transaction confirmation
 func (f *EVMFacilitator) waitForTransaction(ctx context.Context, txHash common.Hash) (*TransactionReceipt, error) {
-	// Poll for transaction receipt
-	receipt, err := bind.WaitMined(ctx, f.client, &ethTypes.Transaction{})
+	// Get the transaction by hash first
+	tx, pending, err := f.client.TransactionByHash(ctx, txHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to wait for transaction: %w", err)
+		return nil, fmt.Errorf("failed to get transaction by hash: %w", err)
+	}
+
+	// If transaction is pending, wait for it to be mined
+	if pending {
+		receipt, err := bind.WaitMined(ctx, f.client, tx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to wait for transaction: %w", err)
+		}
+		return &TransactionReceipt{
+			Status: receipt.Status,
+		}, nil
+	}
+
+	// If transaction is already mined, get its receipt directly
+	receipt, err := f.client.TransactionReceipt(ctx, txHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction receipt: %w", err)
 	}
 
 	return &TransactionReceipt{
