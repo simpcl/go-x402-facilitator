@@ -109,7 +109,8 @@ func NewEVMFacilitator(rpcURL string, chainID int64, usdcAddress string, private
 	}
 
 	// Fetch token name and version from contract
-	tokenName, tokenVersion, err := facilitator.fetchTokenInfo(ctx)
+	tcu := utils.NewTokenContractUtils(usdcAddr.Hex(), client)
+	tokenName, tokenVersion, err := tcu.FetchTokenInfoWithContext(ctx)
 	if err != nil {
 		// Log warning but don't fail - use defaults
 		log.Warn().
@@ -129,62 +130,6 @@ func NewEVMFacilitator(rpcURL string, chainID int64, usdcAddress string, private
 	return facilitator, nil
 }
 
-// fetchTokenInfo fetches the token name and version from the contract
-func (f *EVMFacilitator) fetchTokenInfo(ctx context.Context) (string, string, error) {
-	// ERC20 name() function ABI
-	nameABI := `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-	// GenericToken version() function ABI
-	versionABI := `[{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-
-	nameParsed, err := abi.JSON(strings.NewReader(nameABI))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse name ABI: %w", err)
-	}
-
-	versionParsed, err := abi.JSON(strings.NewReader(versionABI))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse version ABI: %w", err)
-	}
-
-	callOpts := &bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	}
-
-	// Get token name
-	nameContract := bind.NewBoundContract(f.usdcAddr, nameParsed, f.client, f.client, f.client)
-	var nameResults []interface{}
-	err = nameContract.Call(callOpts, &nameResults, "name")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to call name(): %w", err)
-	}
-	if len(nameResults) == 0 {
-		return "", "", fmt.Errorf("name() returned no results")
-	}
-	tokenName, ok := nameResults[0].(string)
-	if !ok {
-		return "", "", fmt.Errorf("name() returned invalid type")
-	}
-
-	// Get token version
-	versionContract := bind.NewBoundContract(f.usdcAddr, versionParsed, f.client, f.client, f.client)
-	var versionResults []interface{}
-	err = versionContract.Call(callOpts, &versionResults, "version")
-	if err != nil {
-		// Version might not exist, use default
-		return tokenName, "1", nil
-	}
-	if len(versionResults) == 0 {
-		return tokenName, "1", nil
-	}
-	tokenVersion, ok := versionResults[0].(string)
-	if !ok {
-		return tokenName, "1", nil
-	}
-
-	return tokenName, tokenVersion, nil
-}
-
 // getTokenName returns the token name, with fallback to default
 func (f *EVMFacilitator) getTokenName() string {
 	if f.tokenName != "" {
@@ -199,44 +144,6 @@ func (f *EVMFacilitator) getTokenVersion() string {
 		return f.tokenVersion
 	}
 	return "1"
-}
-
-// getContractDomainSeparator fetches the actual domain separator from the contract
-func (f *EVMFacilitator) getContractDomainSeparator(ctx context.Context) ([]byte, error) {
-	// DOMAIN_SEPARATOR() function ABI
-	domainABI := `[{"constant":true,"inputs":[],"name":"DOMAIN_SEPARATOR","outputs":[{"name":"","type":"bytes32"}],"type":"function"}]`
-
-	domainParsed, err := abi.JSON(strings.NewReader(domainABI))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse domain separator ABI: %w", err)
-	}
-
-	callOpts := &bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	}
-
-	domainContract := bind.NewBoundContract(f.usdcAddr, domainParsed, f.client, f.client, f.client)
-	var results []interface{}
-	err = domainContract.Call(callOpts, &results, "DOMAIN_SEPARATOR")
-	if err != nil {
-		return nil, fmt.Errorf("failed to call DOMAIN_SEPARATOR: %w", err)
-	}
-
-	if len(results) == 0 {
-		return nil, fmt.Errorf("DOMAIN_SEPARATOR returned no results")
-	}
-
-	domainBytes, ok := results[0].([32]byte)
-	if !ok {
-		// Try as common.Hash
-		if hash, ok := results[0].(common.Hash); ok {
-			return hash.Bytes(), nil
-		}
-		return nil, fmt.Errorf("DOMAIN_SEPARATOR returned invalid type")
-	}
-
-	return domainBytes[:], nil
 }
 
 // Verify verifies an exact EVM payment payload
@@ -792,9 +699,8 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 				contractRecovered := crypto.PubkeyToAddress(*contractRecoveredAddr)
 
 				// Also get the actual domain separator from contract to compare
-				domainSeparator, domainErr := f.getContractDomainSeparator(ctx)
+				domainSeparator, domainErr := utils.NewTokenContractUtils(f.usdcAddr.Hex(), f.client).GetDomainSeparator(ctx)
 				ourDomainHash, ourErr := contractTypedData.HashDomain()
-
 				log.Info().
 					Str("contract_recovered", contractRecovered.Hex()).
 					Str("expected", fromAddr.Hex()).
