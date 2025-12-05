@@ -72,7 +72,7 @@ func RecoverAddress(typedData *eip712.TypedData, signatureHex string) (common.Ad
 		return common.Address{}, err
 	}
 
-	typedDataHashBytes, err := HashTypedDataBytesByEthAccount(typedData)
+	typedDataHashBytes, err := HashTypedDataBytes(typedData)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to hash typedData")
 		return common.Address{}, err
@@ -255,14 +255,22 @@ func IsValidTimestamp(validAfter, validBefore string) (bool, string) {
 		return false, "invalid_valid_before_format"
 	}
 
-	// Add 3 blocks buffer (assuming 2 seconds per block)
-	buffer := int64(6)
+	// Add buffer for expiration check (3 blocks, assuming 2 seconds per block)
+	expirationBuffer := int64(6)
 
-	if vb < now+buffer {
+	// Add buffer for validAfter check to account for:
+	// 1. System time vs block timestamp differences
+	// 2. Network latency between verification and settlement
+	// 3. Block time variations
+	// Allow validAfter to be up to 10 seconds in the future
+	validAfterBuffer := int64(10)
+
+	if vb < now+expirationBuffer {
 		return false, "authorization_expired"
 	}
 
-	if va > now {
+	// Allow validAfter to be slightly in the future to account for time differences
+	if va > now+validAfterBuffer {
 		return false, "authorization_not_yet_valid"
 	}
 

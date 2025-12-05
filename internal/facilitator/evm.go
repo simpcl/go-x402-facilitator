@@ -9,9 +9,11 @@ import (
 
 	"crypto/ecdsa"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -27,11 +29,13 @@ const (
 
 // EVMFacilitator handles EVM-based payment verification and settlement
 type EVMFacilitator struct {
-	client     *ethclient.Client
-	chainID    int64
-	usdcAddr   common.Address
-	privateKey *ecdsa.PrivateKey
-	auth       *bind.TransactOpts
+	client       *ethclient.Client
+	chainID      int64
+	usdcAddr     common.Address
+	privateKey   *ecdsa.PrivateKey
+	auth         *bind.TransactOpts
+	tokenName    string // Cached token name from contract
+	tokenVersion string // Cached token version from contract
 }
 
 // NewEVMFacilitator creates a new EVM facilitator instance
@@ -96,13 +100,143 @@ func NewEVMFacilitator(rpcURL string, chainID int64, usdcAddress string, private
 		}
 	}
 
-	return &EVMFacilitator{
+	facilitator := &EVMFacilitator{
 		client:     client,
 		chainID:    chainID,
 		usdcAddr:   usdcAddr,
 		privateKey: privateKey,
 		auth:       auth,
-	}, nil
+	}
+
+	// Fetch token name and version from contract
+	tokenName, tokenVersion, err := facilitator.fetchTokenInfo(ctx)
+	if err != nil {
+		// Log warning but don't fail - use defaults
+		log.Warn().
+			Err(err).
+			Msg("Failed to fetch token name/version from contract, using defaults")
+		facilitator.tokenName = "GenericToken"
+		facilitator.tokenVersion = "1"
+	} else {
+		facilitator.tokenName = tokenName
+		facilitator.tokenVersion = tokenVersion
+		log.Info().
+			Str("token_name", tokenName).
+			Str("token_version", tokenVersion).
+			Msg("Fetched token info from contract")
+	}
+
+	return facilitator, nil
+}
+
+// fetchTokenInfo fetches the token name and version from the contract
+func (f *EVMFacilitator) fetchTokenInfo(ctx context.Context) (string, string, error) {
+	// ERC20 name() function ABI
+	nameABI := `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
+	// GenericToken version() function ABI
+	versionABI := `[{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"type":"function"}]`
+
+	nameParsed, err := abi.JSON(strings.NewReader(nameABI))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse name ABI: %w", err)
+	}
+
+	versionParsed, err := abi.JSON(strings.NewReader(versionABI))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse version ABI: %w", err)
+	}
+
+	callOpts := &bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+
+	// Get token name
+	nameContract := bind.NewBoundContract(f.usdcAddr, nameParsed, f.client, f.client, f.client)
+	var nameResults []interface{}
+	err = nameContract.Call(callOpts, &nameResults, "name")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to call name(): %w", err)
+	}
+	if len(nameResults) == 0 {
+		return "", "", fmt.Errorf("name() returned no results")
+	}
+	tokenName, ok := nameResults[0].(string)
+	if !ok {
+		return "", "", fmt.Errorf("name() returned invalid type")
+	}
+
+	// Get token version
+	versionContract := bind.NewBoundContract(f.usdcAddr, versionParsed, f.client, f.client, f.client)
+	var versionResults []interface{}
+	err = versionContract.Call(callOpts, &versionResults, "version")
+	if err != nil {
+		// Version might not exist, use default
+		return tokenName, "1", nil
+	}
+	if len(versionResults) == 0 {
+		return tokenName, "1", nil
+	}
+	tokenVersion, ok := versionResults[0].(string)
+	if !ok {
+		return tokenName, "1", nil
+	}
+
+	return tokenName, tokenVersion, nil
+}
+
+// getTokenName returns the token name, with fallback to default
+func (f *EVMFacilitator) getTokenName() string {
+	if f.tokenName != "" {
+		return f.tokenName
+	}
+	return "GenericToken"
+}
+
+// getTokenVersion returns the token version, with fallback to default
+func (f *EVMFacilitator) getTokenVersion() string {
+	if f.tokenVersion != "" {
+		return f.tokenVersion
+	}
+	return "1"
+}
+
+// getContractDomainSeparator fetches the actual domain separator from the contract
+func (f *EVMFacilitator) getContractDomainSeparator(ctx context.Context) ([]byte, error) {
+	// DOMAIN_SEPARATOR() function ABI
+	domainABI := `[{"constant":true,"inputs":[],"name":"DOMAIN_SEPARATOR","outputs":[{"name":"","type":"bytes32"}],"type":"function"}]`
+
+	domainParsed, err := abi.JSON(strings.NewReader(domainABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse domain separator ABI: %w", err)
+	}
+
+	callOpts := &bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+
+	domainContract := bind.NewBoundContract(f.usdcAddr, domainParsed, f.client, f.client, f.client)
+	var results []interface{}
+	err = domainContract.Call(callOpts, &results, "DOMAIN_SEPARATOR")
+	if err != nil {
+		return nil, fmt.Errorf("failed to call DOMAIN_SEPARATOR: %w", err)
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("DOMAIN_SEPARATOR returned no results")
+	}
+
+	domainBytes, ok := results[0].([32]byte)
+	if !ok {
+		// Try as common.Hash
+		if hash, ok := results[0].(common.Hash); ok {
+			return hash.Bytes(), nil
+		}
+		return nil, fmt.Errorf("DOMAIN_SEPARATOR returned invalid type")
+	}
+
+	return domainBytes[:], nil
 }
 
 // Verify verifies an exact EVM payment payload
@@ -328,6 +462,11 @@ func (f *EVMFacilitator) extractExactEVMPayload(payload *facilitatorTypes.Paymen
 
 // verifySignature verifies the EIP-712 signature
 func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPayload, requirements *facilitatorTypes.PaymentRequirements) error {
+	// Ensure addresses are lowercase for EIP-712 hash consistency
+	// The client signs with lowercase addresses, so we must match that format
+	fromLower := strings.ToLower(payload.Authorization.From)
+	toLower := strings.ToLower(payload.Authorization.To)
+
 	// Create typed data for verification
 	typedData := &eip712.TypedData{
 		Types: map[string][]eip712.TypedDataField{
@@ -348,14 +487,14 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 		},
 		PrimaryType: "TransferWithAuthorization",
 		Domain: eip712.TypedDataDomain{
-			Name:              "GenericToken",
-			Version:           "1",
+			Name:              f.getTokenName(),
+			Version:           f.getTokenVersion(),
 			ChainId:           uint64(f.chainID),
 			VerifyingContract: common.HexToAddress(requirements.Asset),
 		},
 		Message: map[string]interface{}{
-			"from":        payload.Authorization.From,
-			"to":          payload.Authorization.To,
+			"from":        fromLower,
+			"to":          toLower,
 			"value":       payload.Authorization.Value,
 			"validAfter":  payload.Authorization.ValidAfter,
 			"validBefore": payload.Authorization.ValidBefore,
@@ -372,9 +511,20 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 	// Verify the recovered address matches the expected address
 	expectedAddr := common.HexToAddress(payload.Authorization.From)
 	if recoveredAddr != expectedAddr {
-		log.Error().Err(err).Msgf("signature verification failed, address mismatch: expected %s, got %s", expectedAddr.Hex(), recoveredAddr.Hex())
+		log.Error().
+			Str("expected", expectedAddr.Hex()).
+			Str("recovered", recoveredAddr.Hex()).
+			Str("from_lower", fromLower).
+			Str("to_lower", toLower).
+			Msg("signature verification failed, address mismatch")
 		return fmt.Errorf("signature verification failed: address mismatch")
 	}
+
+	log.Info().
+		Str("recovered_address", recoveredAddr.Hex()).
+		Str("from", fromLower).
+		Str("to", toLower).
+		Msg("Signature verification successful")
 
 	return nil
 }
@@ -399,7 +549,7 @@ func (f *EVMFacilitator) verifyTimeWindow(payload *facilitatorTypes.ExactEVMPayl
 	)
 
 	if !valid {
-		return fmt.Errorf(reason)
+		return fmt.Errorf("%s", reason)
 	}
 
 	return nil
@@ -536,19 +686,50 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	// Extract v, r, s values
 	var v uint8
 	if sig.V != nil {
-		v = uint8(sig.V.Uint64())
+		vRaw := sig.V.Uint64()
+		v = uint8(vRaw)
+		// Normalize v value: if it's 0 or 1, add 27 to get 27 or 28
+		// If it's already 27 or 28, keep it as is
 		if v == 0 || v == 1 {
 			v += 27
 		}
+		// Ensure v is 27 or 28
+		if v != 27 && v != 28 {
+			return common.Hash{}, fmt.Errorf("invalid v value: %d (must be 27 or 28)", v)
+		}
+		log.Info().
+			Uint64("v_raw", vRaw).
+			Uint8("v_normalized", v).
+			Msg("Extracted signature v value")
 	}
 
 	// Prepare arguments
 	fromAddr := common.HexToAddress(payload.Authorization.From)
 	toAddr := common.HexToAddress(payload.Authorization.To)
-	value, _ := new(big.Int).SetString(payload.Authorization.Value, 10)
-	validAfter, _ := new(big.Int).SetString(payload.Authorization.ValidAfter, 10)
-	validBefore, _ := new(big.Int).SetString(payload.Authorization.ValidBefore, 10)
+	value, ok := new(big.Int).SetString(payload.Authorization.Value, 10)
+	if !ok {
+		return common.Hash{}, fmt.Errorf("invalid value: %s", payload.Authorization.Value)
+	}
+	validAfter, ok := new(big.Int).SetString(payload.Authorization.ValidAfter, 10)
+	if !ok {
+		return common.Hash{}, fmt.Errorf("invalid validAfter: %s", payload.Authorization.ValidAfter)
+	}
+	validBefore, ok := new(big.Int).SetString(payload.Authorization.ValidBefore, 10)
+	if !ok {
+		return common.Hash{}, fmt.Errorf("invalid validBefore: %s", payload.Authorization.ValidBefore)
+	}
 	nonce := common.HexToHash(payload.Authorization.Nonce)
+
+	// Log transaction parameters for debugging
+	log.Info().
+		Str("from", fromAddr.Hex()).
+		Str("to", toAddr.Hex()).
+		Str("value", value.String()).
+		Str("validAfter", validAfter.String()).
+		Str("validBefore", validBefore.String()).
+		Str("nonce", nonce.Hex()).
+		Uint8("v", v).
+		Msg("Preparing transferWithAuthorization transaction")
 
 	// Convert *big.Int to [32]byte for ABI compatibility
 	var rBytes [32]byte
@@ -559,6 +740,81 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	}
 	if sig.S != nil {
 		sBytes = common.BigToHash(sig.S)
+	}
+
+	// Before packing, let's verify the signature matches what the contract will verify
+	// The contract will reconstruct the EIP-712 message using the parameters we pass
+	// So we need to ensure the format matches exactly what was signed
+	contractTypedData := &eip712.TypedData{
+		Types: map[string][]eip712.TypedDataField{
+			"EIP712Domain": {
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"TransferWithAuthorization": {
+				{Name: "from", Type: "address"},
+				{Name: "to", Type: "address"},
+				{Name: "value", Type: "uint256"},
+				{Name: "validAfter", Type: "uint256"},
+				{Name: "validBefore", Type: "uint256"},
+				{Name: "nonce", Type: "bytes32"},
+			},
+		},
+		PrimaryType: "TransferWithAuthorization",
+		Domain: eip712.TypedDataDomain{
+			Name:              f.getTokenName(),
+			Version:           f.getTokenVersion(),
+			ChainId:           uint64(f.chainID),
+			VerifyingContract: f.usdcAddr,
+		},
+		Message: map[string]interface{}{
+			"from":        fromAddr, // Contract uses address type, not string
+			"to":          toAddr,   // Contract uses address type, not string
+			"value":       value.String(),
+			"validAfter":  validAfter.String(),
+			"validBefore": validBefore.String(),
+			"nonce":       nonce,
+		},
+	}
+
+	// Verify signature with contract's expected format
+	contractHash, err := utils.HashTypedDataBytes(contractTypedData)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to hash typed data for contract verification")
+	} else {
+		// Try to recover address using contract's hash
+		sigBytes, err := hexutil.Decode(payload.Signature)
+		if err == nil {
+			contractRecoveredAddr, err := crypto.SigToPub(contractHash, sigBytes)
+			if err == nil {
+				contractRecovered := crypto.PubkeyToAddress(*contractRecoveredAddr)
+
+				// Also get the actual domain separator from contract to compare
+				domainSeparator, domainErr := f.getContractDomainSeparator(ctx)
+				ourDomainHash, ourErr := contractTypedData.HashDomain()
+
+				log.Info().
+					Str("contract_recovered", contractRecovered.Hex()).
+					Str("expected", fromAddr.Hex()).
+					Str("hash", fmt.Sprintf("%x", contractHash)).
+					Str("token_name", f.getTokenName()).
+					Str("token_version", f.getTokenVersion()).
+					Str("our_domain_hash", fmt.Sprintf("%x", ourDomainHash)).
+					Str("contract_domain_separator", fmt.Sprintf("%x", domainSeparator)).
+					Err(domainErr).
+					Err(ourErr).
+					Msg("Contract signature verification simulation")
+
+				if contractRecovered != fromAddr {
+					log.Warn().
+						Str("contract_recovered", contractRecovered.Hex()).
+						Str("expected", fromAddr.Hex()).
+						Msg("Contract signature verification would fail - address mismatch")
+				}
+			}
+		}
 	}
 
 	// Pack the function call data with correct types
@@ -578,21 +834,70 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 		return common.Hash{}, fmt.Errorf("failed to pack function call: %w", err)
 	}
 
-	// Create and send transaction
-	// msg := ethereum.CallMsg{
-	// 	From:  f.auth.From,
-	// 	To:    &f.usdcAddr,
-	// 	Data:  data,
-	// 	Gas:   0,     // Will be set by gas limit estimation
-	// 	Value: value, //big.NewInt(0),
-	// }
+	// Try to estimate gas and simulate the call to catch revert reasons
+	msg := ethereum.CallMsg{
+		From: f.auth.From,
+		To:   &f.usdcAddr,
+		Data: data,
+		Gas:  0,
+	}
 
-	// Estimate gas
-	// gasLimit, err := f.client.EstimateGas(ctx, msg)
-	// if err != nil {
-	// 	return common.Hash{}, fmt.Errorf("failed to estimate gas: %w", err)
-	// }
-	gasLimit := uint64(210000)
+	// Estimate gas - this will also reveal revert reasons
+	gasLimit, err := f.client.EstimateGas(ctx, msg)
+	if err != nil {
+		errStr := err.Error()
+		// Check if the error is due to authorization not yet valid
+		if strings.Contains(errStr, "Authorization not yet valid") {
+			// Get current block timestamp to check the actual time difference
+			header, headerErr := f.client.HeaderByNumber(ctx, nil)
+			if headerErr == nil {
+				blockTime := header.Time
+				validAfterTime := validAfter.Int64()
+				timeDiff := validAfterTime - int64(blockTime)
+
+				log.Warn().
+					Int64("block_timestamp", int64(blockTime)).
+					Int64("valid_after", validAfterTime).
+					Int64("time_difference", timeDiff).
+					Msg("Authorization not yet valid - waiting for block time to catch up")
+
+				// If the difference is small (less than 5 seconds), wait and retry
+				if timeDiff > 0 && timeDiff < 5 {
+					log.Info().
+						Int64("wait_seconds", timeDiff+1).
+						Msg("Waiting for authorization to become valid")
+					time.Sleep(time.Duration(timeDiff+1) * time.Second)
+
+					// Retry gas estimation
+					gasLimit, err = f.client.EstimateGas(ctx, msg)
+					if err != nil {
+						return common.Hash{}, fmt.Errorf("authorization still not valid after waiting: %w", err)
+					}
+					log.Info().
+						Uint64("estimated_gas", gasLimit).
+						Msg("Gas estimation successful after waiting")
+				} else {
+					return common.Hash{}, fmt.Errorf("authorization not yet valid: block time %d, validAfter %d (diff: %d seconds)", blockTime, validAfterTime, timeDiff)
+				}
+			} else {
+				return common.Hash{}, fmt.Errorf("authorization not yet valid and failed to get block header: %w", err)
+			}
+		} else {
+			log.Warn().
+				Err(err).
+				Msg("Gas estimation failed - transaction may revert")
+			// Continue with default gas limit, but log the error
+			gasLimit = uint64(210000)
+		}
+	} else {
+		// Add 20% buffer to estimated gas
+		gasLimit = gasLimit + gasLimit/5
+		log.Info().
+			Uint64("estimated_gas", gasLimit).
+			Msg("Gas estimation successful")
+	}
+
+	// gasLimit is already set from the estimation above
 
 	// Get transaction nonce - use pending nonce if not set in auth
 	var txNonce uint64
@@ -621,10 +926,12 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	}
 
 	// Send transaction
+	// Note: transaction value must be 0 for ERC20 token transfers
+	// The token amount is already included in the contract call data
 	tx := ethTypes.NewTransaction(
 		txNonce,
 		f.usdcAddr,
-		value, // big.NewInt(0),
+		big.NewInt(0), // Transaction value must be 0 for ERC20 transfers
 		gasLimit,
 		gasPrice,
 		data,
