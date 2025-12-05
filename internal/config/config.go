@@ -182,3 +182,12 @@ func (c *Config) GetUSDCAddress(network string) string {
 	}
 	return ""
 }
+
+func (c *Config) Show() {
+	fmt.Println("Config:")
+	fmt.Printf("  Server: %+v\n", c.Server)
+	fmt.Printf("  Ethereum: %+v\n", c.Ethereum)
+	fmt.Printf("  Auth: %+v\n", c.Auth)
+	fmt.Printf("  Monitoring: %+v\n", c.Monitoring)
+	fmt.Printf("  Supported: %+v\n", c.Supported)
+}

@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
-	eip712 "github.com/x402/go-x402-facilitator/pkg/eip712simple"
+	eip712 "github.com/x402/go-x402-facilitator/pkg/eip712full"
 	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
 	"github.com/x402/go-x402-facilitator/pkg/utils"
 )

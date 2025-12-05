@@ -40,6 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load configuration")
 	}
+	cfg.Show()
 
 	// Initialize logger
 	setupLogger(cfg)
