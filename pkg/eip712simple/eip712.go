@@ -5,10 +5,11 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	// "github.com/ethereum/go-ethereum/accounts"
+	// "github.com/ethereum/go-ethereum/common"
+	// "github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rs/zerolog/log"
+	// "github.com/rs/zerolog/log"
 )
 
 // TypedDataDomain represents the domain in EIP-712 typed data
@@ -37,61 +38,73 @@ type TypedData struct {
 	Message     map[string]interface{}      `json:"message"`
 }
 
-// RecoverAddress recovers the signing address from EIP-712 typed data
-func RecoverAddress(typedData *TypedData, signatureHex string) (common.Address, error) {
-	signature, err := hexutil.Decode(signatureHex)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed to decode signatureHex: %s", signatureHex)
-		return common.Address{}, err
-	}
-
-	typedDataHash, err := HashTypedData(typedData)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to hash typedData")
-		return common.Address{}, err
-	}
-
-	recoveredAddr, err := crypto.SigToPub(typedDataHash[:], signature)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to sig to pub")
-		return common.Address{}, err
-	}
-
-	return crypto.PubkeyToAddress(*recoveredAddr), nil
-}
-
-// HashTypedData creates the hash of EIP-712 typed data
-func HashTypedData(typedData *TypedData) (common.Hash, error) {
-	// domainSeparator, err := hashDomainSeparator(&typedData.Domain)
-	domainSeparator, err := typedData.hashDomain()
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	// typeHash, err := hashTypeHash(typedData.Types, typedData.PrimaryType, typedData.Message)
-	typeHash, err := typedData.hashStruct()
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return crypto.Keccak256Hash(
-		append([]byte{0x19, 0x01}, append(domainSeparator[:], typeHash[:]...)...),
-	), nil
-}
-
-// hashDomainSeparator creates the domain separator hash
-// func hashDomainSeparator(domain *TypedDataDomain) (common.Hash, error) {
-// 	domainData := []string{
-// 		domain.Name,
-// 		domain.Version,
-// 		domain.ChainID.String(),
-// 		domain.VerifyingContract,
+// // RecoverAddress recovers the signing address from EIP-712 typed data
+// func RecoverAddress(typedData *TypedData, signatureHex string) (common.Address, error) {
+// 	signature, err := hexutil.Decode(signatureHex)
+// 	if err != nil {
+// 		log.Error().Err(err).Msgf("Failed to decode signatureHex: %s", signatureHex)
+// 		return common.Address{}, err
 // 	}
 
-// 	return crypto.Keccak256Hash([]byte(strings.Join(domainData, ""))), nil
+// 	typedDataHash, err := HashTypedData(typedData)
+// 	if err != nil {
+// 		log.Error().Err(err).Msg("Failed to hash typedData")
+// 		return common.Address{}, err
+// 	}
+
+// 	recoveredAddr, err := crypto.SigToPub(typedDataHash[:], signature)
+// 	if err != nil {
+// 		log.Error().Err(err).Msg("Failed to sig to pub")
+// 		return common.Address{}, err
+// 	}
+
+// 	return crypto.PubkeyToAddress(*recoveredAddr), nil
 // }
 
-func (td *TypedData) hashDomain() (common.Hash, error) {
+// // HashTypedData creates the hash of EIP-712 typed data
+// func HashTypedData(typedData *TypedData) (common.Hash, error) {
+// 	domainSeparator, err := typedData.HashDomain()
+// 	if err != nil {
+// 		return common.Hash{}, err
+// 	}
+
+// 	typeHash, err := typedData.HashStruct()
+// 	if err != nil {
+// 		return common.Hash{}, err
+// 	}
+
+// 	return crypto.Keccak256Hash(
+// 		append([]byte{0x19, 0x01}, append(domainSeparator[:], typeHash[:]...)...),
+// 	), nil
+// }
+
+// func HashTypedDataBytes(typedData *TypedData) ([]byte, error) {
+// 	fullHash, err := HashTypedData(typedData)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return fullHash.Bytes(), nil
+// }
+
+// func HashTypedDataBytesByEthAccount(typedData *TypedData) ([]byte, error) {
+// 	digest, err := typedData.HashStruct()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	domainSeparator, err := typedData.HashDomain()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	fullHash := accounts.TextHash(append(
+// 		append([]byte("\x19\x01"), domainSeparator...),
+// 		digest...,
+// 	))
+// 	return fullHash, nil
+// }
+
+func (td *TypedData) HashDomain() ([]byte, error) {
 	domainData := []string{
 		td.Domain.Name,
 		td.Domain.Version,
@@ -99,27 +112,17 @@ func (td *TypedData) hashDomain() (common.Hash, error) {
 		td.Domain.VerifyingContract,
 	}
 
-	return crypto.Keccak256Hash([]byte(strings.Join(domainData, ""))), nil
+	hash := crypto.Keccak256Hash([]byte(strings.Join(domainData, "")))
+	return hash.Bytes(), nil
 }
 
-// hashTypeHash creates the hash for the specific type and message
-// func hashTypeHash(types map[string][]TypedDataField, primaryType string, message map[string]interface{}) (common.Hash, error) {
-// 	// This is a simplified version - in production, you'd want a more complete implementation
-// 	data := []byte(primaryType)
-// 	for _, field := range types[primaryType] {
-// 		if value, exists := message[field.Name]; exists {
-// 			data = append(data, []byte(fmt.Sprintf("%v", value))...)
-// 		}
-// 	}
-// 	return crypto.Keccak256Hash(data), nil
-// }
-
-func (td *TypedData) hashStruct() (common.Hash, error) {
+func (td *TypedData) HashStruct() ([]byte, error) {
 	data := []byte(td.PrimaryType)
 	for _, field := range td.Types[td.PrimaryType] {
 		if value, exists := td.Message[field.Name]; exists {
 			data = append(data, []byte(fmt.Sprintf("%v", value))...)
 		}
 	}
-	return crypto.Keccak256Hash(data), nil
+	hash := crypto.Keccak256Hash(data)
+	return hash.Bytes(), nil
 }

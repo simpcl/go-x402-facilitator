@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
-	"github.com/x402/go-x402-facilitator/pkg/eip712full"
+	eip712 "github.com/x402/go-x402-facilitator/pkg/eip712full"
 	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
 	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
@@ -329,8 +329,8 @@ func (f *EVMFacilitator) extractExactEVMPayload(payload *facilitatorTypes.Paymen
 // verifySignature verifies the EIP-712 signature
 func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPayload, requirements *facilitatorTypes.PaymentRequirements) error {
 	// Create typed data for verification
-	typedData := &eip712full.TypedData{
-		Types: map[string][]eip712full.TypedDataField{
+	typedData := &eip712.TypedData{
+		Types: map[string][]eip712.TypedDataField{
 			"EIP712Domain": {
 				{Name: "name", Type: "string"},
 				{Name: "version", Type: "string"},
@@ -347,7 +347,7 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 			},
 		},
 		PrimaryType: "TransferWithAuthorization",
-		Domain: eip712full.TypedDataDomain{
+		Domain: eip712.TypedDataDomain{
 			Name:              "GenericToken",
 			Version:           "1",
 			ChainId:           uint64(f.chainID),
@@ -364,7 +364,7 @@ func (f *EVMFacilitator) verifySignature(payload *facilitatorTypes.ExactEVMPaylo
 	}
 
 	// Recover the address
-	recoveredAddr, err := eip712full.RecoverAddress(typedData, payload.Signature)
+	recoveredAddr, err := utils.RecoverAddress(typedData, payload.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to recover address: %w", err)
 	}

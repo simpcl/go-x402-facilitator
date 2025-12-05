@@ -7,11 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/rs/zerolog/log"
+	eip712 "github.com/x402/go-x402-facilitator/pkg/eip712full"
 	"github.com/x402/go-x402-facilitator/pkg/types"
 )
 
@@ -58,6 +62,74 @@ func ParseSignature(signatureHex string) (*types.Signature, error) {
 		R: R,
 		S: S,
 	}, nil
+}
+
+// RecoverAddress recovers the signing address from EIP-712 typed data
+func RecoverAddress(typedData *eip712.TypedData, signatureHex string) (common.Address, error) {
+	signature, err := hexutil.Decode(signatureHex)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to decode signatureHex: %s", signatureHex)
+		return common.Address{}, err
+	}
+
+	typedDataHashBytes, err := HashTypedDataBytesByEthAccount(typedData)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to hash typedData")
+		return common.Address{}, err
+	}
+
+	recoveredAddr, err := crypto.SigToPub(typedDataHashBytes, signature)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to sig to pub")
+		return common.Address{}, err
+	}
+
+	return crypto.PubkeyToAddress(*recoveredAddr), nil
+}
+
+// HashTypedData creates the hash of EIP-712 typed data
+func HashTypedData(typedData *eip712.TypedData) (common.Hash, error) {
+	digest, err := typedData.HashStruct()
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	domainSeparator, err := typedData.HashDomain()
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	// EIP-712 Standard: keccak256("\x19\x01" || domainSeparator || structHash)
+	return crypto.Keccak256Hash(
+		append(append([]byte("\x19\x01"), domainSeparator...), digest...),
+		// append([]byte{0x19, 0x01}, append(domainSeparator[:], typeHash[:]...)...),
+	), nil
+}
+
+func HashTypedDataBytes(typedData *eip712.TypedData) ([]byte, error) {
+	fullHash, err := HashTypedData(typedData)
+	if err != nil {
+		return nil, err
+	}
+	return fullHash.Bytes(), nil
+}
+
+func HashTypedDataBytesByEthAccount(typedData *eip712.TypedData) ([]byte, error) {
+	digest, err := typedData.HashStruct()
+	if err != nil {
+		return nil, err
+	}
+
+	domainSeparator, err := typedData.HashDomain()
+	if err != nil {
+		return nil, err
+	}
+
+	fullHash := accounts.TextHash(append(
+		append([]byte("\x19\x01"), domainSeparator...),
+		digest...,
+	))
+	return fullHash, nil
 }
 
 // ValidateNetwork checks if the network is supported
