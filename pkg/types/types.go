@@ -1,7 +1,10 @@
 package types
 
 import (
+	"math/big"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // PaymentPayload represents the signed payment payload sent by the client
@@ -106,4 +109,25 @@ type ChainConfig struct {
 	USDCAddress string        `json:"usdcAddress"`
 	USDCName    string        `json:"usdcName"`
 	BlockTime   time.Duration `json:"blockTime"`
+}
+
+// Signature represents a parsed Ethereum signature
+type Signature struct {
+	V *big.Int `json:"v"`
+	R *big.Int `json:"r"`
+	S *big.Int `json:"s"`
+}
+
+func (sig *Signature) ToEthereumSignature() []byte {
+	v := sig.V.Uint64()
+	if v == 0 || v == 1 {
+		log.Info().Msgf("Adjusted v from %d to %d", v, v+27)
+		v = v + 27
+	}
+
+	var signature []byte
+	signature = append(signature, sig.R.Bytes()...)
+	signature = append(signature, sig.S.Bytes()...)
+	signature = append(signature, byte(v))
+	return signature
 }

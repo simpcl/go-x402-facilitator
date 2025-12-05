@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
-	eip712full "github.com/x402/go-x402-facilitator/pkg/eip712full"
+	"github.com/x402/go-x402-facilitator/pkg/eip712full"
 	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
 	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
@@ -528,7 +528,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	}
 
 	// Parse signature
-	sig, err := eip712full.ParseSignature(payload.Signature)
+	sig, err := utils.ParseSignature(payload.Signature)
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("failed to parse signature: %w", err)
 	}

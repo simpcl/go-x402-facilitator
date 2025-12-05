@@ -37,57 +37,12 @@ type TypedData struct {
 	Message     TypedDataMessage
 }
 
-// Signature represents a parsed Ethereum signature
-type Signature struct {
-	V *big.Int `json:"v"`
-	R *big.Int `json:"r"`
-	S *big.Int `json:"s"`
-}
-
-// ParseSignature parses an Ethereum signature
-func ParseSignature(signatureHex string) (*Signature, error) {
-	signature, err := hexutil.Decode(signatureHex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid signature hex: %w", err)
-	}
-
-	if len(signature) != 65 {
-		return nil, fmt.Errorf("signature must be 65 bytes long: %d", len(signature))
-	}
-
-	r := new(big.Int).SetBytes(signature[:32])
-	s := new(big.Int).SetBytes(signature[32:64])
-	v := new(big.Int).SetBytes([]byte{signature[64]})
-
-	return &Signature{
-		V: v,
-		R: r,
-		S: s,
-	}, nil
-}
-
 // RecoverAddress recovers the signing address from EIP-712 typed data
 func RecoverAddress(typedData *TypedData, signatureHex string) (common.Address, error) {
-	sig, err := ParseSignature(signatureHex)
+	signature, err := hexutil.Decode(signatureHex)
 	if err != nil {
-		log.Error().Err(err).Msgf("Failed to parse signature: %s", signatureHex)
+		log.Error().Err(err).Msgf("Failed to decode signatureHex: %s", signatureHex)
 		return common.Address{}, err
-	}
-
-	v := sig.V.Uint64()
-
-	var signature []byte
-	signature = append(signature, sig.R.Bytes()...)
-	signature = append(signature, sig.S.Bytes()...)
-	signature = append(signature, byte(v))
-
-	// Adjust v to be 27 or 28
-	log.Info().Msgf("Adjusted v: %d", v)
-	if v == 0 || v == 1 {
-		v = v + 27
-	}
-	if v != 27 && v != 28 {
-		return common.Address{}, fmt.Errorf("invalid v value: %d", v)
 	}
 
 	typedDataHash, err := HashTypedData(typedData)

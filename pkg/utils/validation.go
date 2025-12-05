@@ -10,7 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/x402/go-x402-facilitator/pkg/types"
 )
 
 // SupportedEVMNetworks lists all supported EVM networks
@@ -26,6 +28,36 @@ var SupportedChains = map[string]int64{
 // USDCContractAddresses maps network names to USDC contract addresses
 var USDCContractAddresses = map[string]string{
 	"localhost": "0xC35898F0f03C0894107869844d7467Af417aD868",
+}
+
+// ParseSignature parses an Ethereum signature
+func ParseSignature(signatureHex string) (*types.Signature, error) {
+	signature, err := hexutil.Decode(signatureHex)
+	if err != nil {
+		return nil, fmt.Errorf("invalid signature hex: %w", err)
+	}
+
+	if len(signature) != 65 {
+		return nil, fmt.Errorf("signature must be 65 bytes long: %d", len(signature))
+	}
+
+	R := new(big.Int).SetBytes(signature[:32])
+	S := new(big.Int).SetBytes(signature[32:64])
+	V := new(big.Int).SetBytes([]byte{signature[64]})
+
+	v := V.Uint64()
+	if v == 0 || v == 1 {
+		v = v + 27
+	}
+	if v != 27 && v != 28 {
+		return nil, fmt.Errorf("invalid v value: %d", v)
+	}
+
+	return &types.Signature{
+		V: V,
+		R: R,
+		S: S,
+	}, nil
 }
 
 // ValidateNetwork checks if the network is supported
