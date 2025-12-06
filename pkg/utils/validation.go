@@ -30,8 +30,8 @@ var SupportedChains = map[string]int64{
 	"localhost": 1337,
 }
 
-// USDCContractAddresses maps network names to USDC contract addresses
-var USDCContractAddresses = map[string]string{
+// TokenContractAddresses maps network names to Token contract addresses
+var TokenContractAddresses = map[string]string{
 	"localhost": "0xC35898F0f03C0894107869844d7467Af417aD868",
 }
 
@@ -250,17 +250,17 @@ func GetChainID(network string) (int64, error) {
 	return chainID, nil
 }
 
-// GetUSDCAddress returns the USDC contract address for the given network
-func GetUSDCAddress(network string) (common.Address, error) {
-	address, exists := USDCContractAddresses[network]
+// GetTokenAddress returns the Token contract address for the given network
+func GetTokenAddress(network string) (common.Address, error) {
+	address, exists := TokenContractAddresses[network]
 	if !exists {
-		return common.Address{}, fmt.Errorf("USDC address for network %s not found", network)
+		return common.Address{}, fmt.Errorf("Token contract address for network %s not found", network)
 	}
 	return common.HexToAddress(address), nil
 }
 
-// CheckUSDCBalance checks the USDC balance of an address
-func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.Int, error) {
+// CheckTokenBalance checks the token balance of an address
+func CheckTokenBalance(client *ethclient.Client, network, address string) (*big.Int, error) {
 	// Input validation
 	if client == nil {
 		return big.NewInt(0), fmt.Errorf("ethereum client is nil - blockchain connection not established")
@@ -279,9 +279,9 @@ func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.I
 		return big.NewInt(0), fmt.Errorf("invalid address format: %s", address)
 	}
 
-	usdcAddr, err := GetUSDCAddress(network)
+	tokenAddr, err := GetTokenAddress(network)
 	if err != nil {
-		return big.NewInt(0), fmt.Errorf("failed to get USDC address for network %s: %w", network, err)
+		return big.NewInt(0), fmt.Errorf("failed to get Token contract address for network %s: %w", network, err)
 	}
 
 	addr := common.HexToAddress(address)
@@ -296,12 +296,12 @@ func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.I
 		return big.NewInt(0), fmt.Errorf("ethereum client connection failed: %w", err)
 	}
 
-	// USDC contract ABI (only the balanceOf function)
-	usdcABIJSON := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
+	// Token contract ABI (only the balanceOf function)
+	tokenABIJSON := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
 
-	parsedABI, err := abi.JSON(strings.NewReader(usdcABIJSON))
+	parsedABI, err := abi.JSON(strings.NewReader(tokenABIJSON))
 	if err != nil {
-		return big.NewInt(0), fmt.Errorf("failed to parse USDC ABI: %w", err)
+		return big.NewInt(0), fmt.Errorf("failed to parse Token contract ABI: %w", err)
 	}
 
 	// Create a callable contract with proper backend
@@ -311,13 +311,13 @@ func CheckUSDCBalance(client *ethclient.Client, network, address string) (*big.I
 	}
 
 	// Use the ethclient as the backend
-	boundContract := bind.NewBoundContract(usdcAddr, parsedABI, client, client, client)
+	boundContract := bind.NewBoundContract(tokenAddr, parsedABI, client, client, client)
 
 	var results []interface{}
 	err = boundContract.Call(callOpts, &results, "balanceOf", addr)
 	if err != nil {
 		// If contract call fails, return zero balance instead of panicking
-		return big.NewInt(0), fmt.Errorf("failed to call USDC balanceOf: %w", err)
+		return big.NewInt(0), fmt.Errorf("failed to call Token balanceOf: %w", err)
 	}
 
 	if len(results) == 0 {

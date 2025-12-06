@@ -36,7 +36,7 @@ const ReceiptStatusSuccess = uint64(1)
 type EVMFacilitator struct {
 	client       *ethclient.Client
 	chainID      int64
-	usdcAddr     common.Address
+	tokenAddr    common.Address
 	privateKey   *ecdsa.PrivateKey
 	auth         *bind.TransactOpts
 	tokenName    string // Cached token name from contract
@@ -44,18 +44,18 @@ type EVMFacilitator struct {
 }
 
 // NewEVMFacilitator creates a new EVM facilitator instance
-func NewEVMFacilitator(rpcURL string, chainID int64, usdcAddress string, privateKeyHex string) (*EVMFacilitator, error) {
+func NewEVMFacilitator(rpcURL string, chainID int64, tokenAddress string, privateKeyHex string) (*EVMFacilitator, error) {
 	// Input validation
 	if rpcURL == "" {
 		return nil, fmt.Errorf("RPC URL cannot be empty")
 	}
 
-	if usdcAddress == "" {
-		return nil, fmt.Errorf("USDC address cannot be empty")
+	if tokenAddress == "" {
+		return nil, fmt.Errorf("Token contract address cannot be empty")
 	}
 
-	if !common.IsHexAddress(usdcAddress) {
-		return nil, fmt.Errorf("invalid USDC address format: %s", usdcAddress)
+	if !common.IsHexAddress(tokenAddress) {
+		return nil, fmt.Errorf("invalid Token contract address format: %s", tokenAddress)
 	}
 
 	if chainID <= 0 {
@@ -85,8 +85,6 @@ func NewEVMFacilitator(rpcURL string, chainID int64, usdcAddress string, private
 		fmt.Printf("   This may cause issues with transaction processing\n")
 	}
 
-	usdcAddr := common.HexToAddress(usdcAddress)
-
 	var privateKey *ecdsa.PrivateKey
 	if privateKeyHex != "" {
 		privateKey, err = crypto.HexToECDSA(privateKeyHex)
@@ -105,16 +103,17 @@ func NewEVMFacilitator(rpcURL string, chainID int64, usdcAddress string, private
 		}
 	}
 
+	tokenAddr := common.HexToAddress(tokenAddress)
 	facilitator := &EVMFacilitator{
 		client:     client,
 		chainID:    chainID,
-		usdcAddr:   usdcAddr,
+		tokenAddr:  tokenAddr,
 		privateKey: privateKey,
 		auth:       auth,
 	}
 
 	// Fetch token name and version from contract
-	tcu := utils.NewTokenContractUtils(usdcAddr.Hex(), client)
+	tcu := utils.NewTokenContractUtils(tokenAddr.Hex(), client)
 	tokenName, tokenVersion, err := tcu.FetchTokenInfoWithContext(ctx)
 	if err != nil {
 		// Log warning but don't fail - use defaults
@@ -440,7 +439,7 @@ func (f *EVMFacilitator) verifyTimeWindow(payload *facilitatorTypes.ExactEVMPayl
 	return nil
 }
 
-// verifyBalance verifies the sender has sufficient USDC balance
+// verifyBalance verifies the sender has sufficient token balance
 func (f *EVMFacilitator) verifyBalance(ctx context.Context, payload *facilitatorTypes.ExactEVMPayload, requirements *facilitatorTypes.PaymentRequirements) error {
 	// Input validation
 	if f == nil {
@@ -481,13 +480,13 @@ func (f *EVMFacilitator) verifyBalance(ctx context.Context, payload *facilitator
 		return fmt.Errorf("max amount required cannot be empty")
 	}
 
-	balance, err := utils.CheckUSDCBalance(f.client, requirements.Network, payload.Authorization.From)
+	balance, err := utils.CheckTokenBalance(f.client, requirements.Network, payload.Authorization.From)
 	if err != nil {
 		// If balance check fails due to connection issues, allow the payment to proceed
 		// This is a graceful degradation approach
 		if strings.Contains(err.Error(), "connection failed") ||
 			strings.Contains(err.Error(), "client is nil") ||
-			strings.Contains(err.Error(), "failed to call USDC balanceOf") {
+			strings.Contains(err.Error(), "failed to call token balanceOf") {
 			fmt.Printf("Warning: Balance check failed due to blockchain connectivity issues: %v\n", err)
 			fmt.Printf("   Proceeding with payment verification without balance check\n")
 			return nil
@@ -531,7 +530,7 @@ func (f *EVMFacilitator) verifyValue(payload *facilitatorTypes.ExactEVMPayload, 
 	return nil
 }
 
-// executeTransferWithAuthorization executes the USDC transferWithAuthorization function
+// executeTransferWithAuthorization executes the Token transferWithAuthorization function
 func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, payload *facilitatorTypes.ExactEVMPayload, requirements *facilitatorTypes.PaymentRequirements) (common.Hash, error) {
 	// Check if facilitator has private key for transaction signing
 	if f.auth == nil {
@@ -559,7 +558,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	// Try to estimate gas and simulate the call to catch revert reasons
 	msg := ethereum.CallMsg{
 		From: f.auth.From,
-		To:   &f.usdcAddr,
+		To:   &f.tokenAddr,
 		Data: data,
 		Gas:  0,
 	}
@@ -627,7 +626,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	// The token amount is already included in the contract call data
 	tx := ethTypes.NewTransaction(
 		txNonce,
-		f.usdcAddr,
+		f.tokenAddr,
 		big.NewInt(0), // Transaction value must be 0 for ERC20 transfers
 		gasLimit,
 		gasPrice,

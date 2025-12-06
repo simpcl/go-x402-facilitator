@@ -10,12 +10,12 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server       ServerConfig      `mapstructure:"server"`
-	Ethereum     EthereumConfig    `mapstructure:"ethereum"`
-	Auth         AuthConfig        `mapstructure:"auth"`
-	Monitoring   MonitoringConfig  `mapstructure:"monitoring"`
-	USDCContract map[string]string `mapstructure:"usdc_contract"`
-	Supported    SupportedConfig   `mapstructure:"supported"`
+	Server        ServerConfig      `mapstructure:"server"`
+	Ethereum      EthereumConfig    `mapstructure:"ethereum"`
+	Auth          AuthConfig        `mapstructure:"auth"`
+	Monitoring    MonitoringConfig  `mapstructure:"monitoring"`
+	TokenContract map[string]string `mapstructure:"token_contract"`
+	Supported     SupportedConfig   `mapstructure:"supported"`
 }
 
 // ServerConfig represents HTTP server configuration
@@ -137,8 +137,8 @@ func setDefaults() {
 		"localhost",
 	})
 
-	// USDC Contract addresses
-	viper.SetDefault("usdc_contract.localhost", "0xC35898F0f03C0894107869844d7467Af417aD868")
+	// Token Contract addresses
+	viper.SetDefault("token_contract.localhost", "0xC35898F0f03C0894107869844d7467Af417aD868")
 }
 
 // validateConfig validates the configuration
@@ -175,9 +175,9 @@ func (c *Config) GetSupportedNetworks() []string {
 	}
 }
 
-// GetUSDCAddress returns USDC contract address for the given network
-func (c *Config) GetUSDCAddress(network string) string {
-	if address, exists := c.USDCContract[network]; exists {
+// GetTokenAddress returns Token contract address for the given network
+func (c *Config) GetTokenAddress(network string) string {
+	if address, exists := c.TokenContract[network]; exists {
 		return address
 	}
 	return ""
@@ -190,4 +190,5 @@ func (c *Config) Show() {
 	fmt.Printf("  Auth: %+v\n", c.Auth)
 	fmt.Printf("  Monitoring: %+v\n", c.Monitoring)
 	fmt.Printf("  Supported: %+v\n", c.Supported)
+	fmt.Printf("  Token Contract: %+v\n", c.TokenContract)
 }

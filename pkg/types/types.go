@@ -2,7 +2,6 @@ package types
 
 import (
 	"math/big"
-	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -100,15 +99,6 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message,omitempty"`
 	Code    int    `json:"code,omitempty"`
-}
-
-// ChainConfig represents configuration for a specific blockchain
-type ChainConfig struct {
-	ChainID     int64         `json:"chainId"`
-	RPCURL      string        `json:"rpcUrl"`
-	USDCAddress string        `json:"usdcAddress"`
-	USDCName    string        `json:"usdcName"`
-	BlockTime   time.Duration `json:"blockTime"`
 }
 
 // Signature represents a parsed Ethereum signature

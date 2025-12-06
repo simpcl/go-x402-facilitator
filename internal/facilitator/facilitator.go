@@ -49,22 +49,22 @@ func (f *Facilitator) initEVMClients() error {
 			return fmt.Errorf("failed to get chain ID for network %s: %w", network, err)
 		}
 
-		// Get USDC contract address for the network
-		usdcAddress := f.config.GetUSDCAddress(network)
-		if usdcAddress == "" {
+		// Get token contract address for the network
+		tokenAddress := f.config.GetTokenAddress(network)
+		if tokenAddress == "" {
 			// Try to get from utils as fallback
-			addr, err := utils.GetUSDCAddress(network)
+			addr, err := utils.GetTokenAddress(network)
 			if err != nil {
-				return fmt.Errorf("failed to get USDC address for network %s: %w", network, err)
+				return fmt.Errorf("failed to get token contract address for network %s: %w", network, err)
 			}
-			usdcAddress = addr.Hex()
+			tokenAddress = addr.Hex()
 		}
 
 		// Create EVM facilitator for this network
 		evmFacilitator, err := NewEVMFacilitator(
 			rpcURL,
 			chainID,
-			usdcAddress,
+			tokenAddress,
 			f.config.Ethereum.PrivateKey,
 		)
 		if err != nil {
