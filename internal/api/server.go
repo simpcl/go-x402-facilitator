@@ -17,18 +17,18 @@ import (
 
 // Server represents the HTTP server
 type Server struct {
-	config     *config.Config
+	config      *config.Config
 	facilitator *facilitator.Facilitator
-	httpServer *http.Server
-	handler    *Handler
+	httpServer  *http.Server
+	handler     *Handler
 }
 
 // NewServer creates a new HTTP server
 func NewServer(cfg *config.Config, f *facilitator.Facilitator) *Server {
 	return &Server{
-		config:     cfg,
+		config:      cfg,
 		facilitator: f,
-		handler:    NewHandler(f),
+		handler:     NewHandler(f),
 	}
 }
 

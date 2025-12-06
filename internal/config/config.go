@@ -10,12 +10,11 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server        ServerConfig      `mapstructure:"server"`
-	Ethereum      EthereumConfig    `mapstructure:"ethereum"`
-	Auth          AuthConfig        `mapstructure:"auth"`
-	Monitoring    MonitoringConfig  `mapstructure:"monitoring"`
-	TokenContract map[string]string `mapstructure:"token_contract"`
-	Supported     SupportedConfig   `mapstructure:"supported"`
+	Server      ServerConfig      `mapstructure:"server"`
+	Facilitator FacilitatorConfig `mapstructure:"facilitator"`
+	Auth        AuthConfig        `mapstructure:"auth"`
+	Monitoring  MonitoringConfig  `mapstructure:"monitoring"`
+	Supported   SupportedConfig   `mapstructure:"supported"`
 }
 
 // ServerConfig represents HTTP server configuration
@@ -28,12 +27,17 @@ type ServerConfig struct {
 }
 
 // EthereumConfig represents Ethereum client configuration
-type EthereumConfig struct {
-	DefaultRPCURL string            `mapstructure:"default_rpc_url"`
-	ChainConfigs  map[string]string `mapstructure:"chain_configs"`
-	PrivateKey    string            `mapstructure:"private_key"`
-	GasLimit      uint64            `mapstructure:"gas_limit"`
-	GasPrice      string            `mapstructure:"gas_price"`
+type FacilitatorConfig struct {
+	DefaultChainNetwork  string `mapstructure:"default_chain_network"`
+	DefaultChainRPC      string `mapstructure:"default_chain_rpc"`
+	DefaultChainID       uint64 `mapstructure:"default_chain_id"`
+	DefaultTokenAddress  string `mapstructure:"default_token_address"`
+	DefaultTokenName     string `mapstructure:"default_token_name"`
+	DefaultTokenVersion  string `mapstructure:"default_token_version"`
+	DefaultTokenDecimals int64  `mapstructure:"default_token_decimals"`
+	PrivateKey           string `mapstructure:"private_key"`
+	GasLimit             uint64 `mapstructure:"gas_limit"`
+	GasPrice             string `mapstructure:"gas_price"`
 }
 
 // AuthConfig represents authentication configuration
@@ -54,9 +58,11 @@ type MonitoringConfig struct {
 
 // SupportedConfig represents supported schemes and networks
 type SupportedConfig struct {
-	Schemes  []string          `mapstructure:"schemes"`
-	Networks []string          `mapstructure:"networks"`
-	Chains   map[string]string `mapstructure:"chains"`
+	Schemes        []string          `mapstructure:"schemes"`
+	Networks       []string          `mapstructure:"networks"`
+	ChainIds       map[string]uint64 `mapstructure:"chain_ids"`
+	ChainRPCs      map[string]string `mapstructure:"chain_rpcs"`
+	TokenContracts map[string]string `mapstructure:"token_contracts"`
 }
 
 // LoadConfig loads configuration from file and environment
@@ -116,9 +122,15 @@ func setDefaults() {
 	viper.SetDefault("server.idle_timeout", "120s")
 
 	// Ethereum defaults
-	viper.SetDefault("ethereum.default_rpc_url", "http://127.0.0.1:8545")
-	viper.SetDefault("ethereum.gas_limit", 100000)
-	viper.SetDefault("ethereum.gas_price", "")
+	viper.SetDefault("facilitator.default_chain_network", "localhost")
+	viper.SetDefault("facilitator.default_chain_rpc", "http://127.0.0.1:8545")
+	viper.SetDefault("facilitator.default_chain_id", 1337)
+	viper.SetDefault("facilitator.default_token_address", "")
+	viper.SetDefault("facilitator.default_token_name", "GenericToken")
+	viper.SetDefault("facilitator.default_token_version", "1")
+	viper.SetDefault("facilitator.default_token_decimals", 6)
+	viper.SetDefault("facilitator.gas_limit", 100000)
+	viper.SetDefault("facilitator.gas_price", "")
 
 	// Auth defaults
 	viper.SetDefault("auth.enabled", true)
@@ -136,9 +148,6 @@ func setDefaults() {
 	viper.SetDefault("supported.networks", []string{
 		"localhost",
 	})
-
-	// Token Contract addresses
-	viper.SetDefault("token_contract.localhost", "0xC35898F0f03C0894107869844d7467Af417aD868")
 }
 
 // validateConfig validates the configuration
@@ -165,30 +174,53 @@ func validateConfig(config *Config) error {
 	return nil
 }
 
+func (c *Config) GetSupportedSchemes() []string {
+	if len(c.Supported.Schemes) > 0 {
+		return c.Supported.Schemes
+	}
+	return []string{
+		"exact",
+	}
+}
+
 // GetSupportedNetworks returns list of supported networks
 func (c *Config) GetSupportedNetworks() []string {
 	if len(c.Supported.Networks) > 0 {
 		return c.Supported.Networks
 	}
-	return []string{
-		"localhost",
-	}
+	return []string{}
 }
 
 // GetTokenAddress returns Token contract address for the given network
-func (c *Config) GetTokenAddress(network string) string {
-	if address, exists := c.TokenContract[network]; exists {
-		return address
+func (c *Config) GetTokenAddress(network string) (string, error) {
+	address, exists := c.Supported.TokenContracts[network]
+	if !exists {
+		return "", fmt.Errorf("network %s not supported", network)
 	}
-	return ""
+	return address, nil
+}
+
+// GetChainID returns the chain ID for the given network
+func (c *Config) GetChainID(network string) (uint64, error) {
+	chainID, exists := c.Supported.ChainIds[network]
+	if !exists {
+		return 0, fmt.Errorf("network %s not supported", network)
+	}
+	return chainID, nil
+}
+
+func (c *Config) GetChainRPC(network string) (string, error) {
+	rpcURL, exists := c.Supported.ChainRPCs[network]
+	if !exists {
+		return "", fmt.Errorf("network %s not supported", network)
+	}
+	return rpcURL, nil
 }
 
 func (c *Config) Show() {
 	fmt.Println("Config:")
 	fmt.Printf("  Server: %+v\n", c.Server)
-	fmt.Printf("  Ethereum: %+v\n", c.Ethereum)
 	fmt.Printf("  Auth: %+v\n", c.Auth)
 	fmt.Printf("  Monitoring: %+v\n", c.Monitoring)
 	fmt.Printf("  Supported: %+v\n", c.Supported)
-	fmt.Printf("  Token Contract: %+v\n", c.TokenContract)
 }

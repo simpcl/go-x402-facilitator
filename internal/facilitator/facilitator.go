@@ -7,7 +7,6 @@ import (
 
 	"github.com/x402/go-x402-facilitator/internal/config"
 	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
-	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
 
 // Facilitator is the main facilitator service
@@ -36,28 +35,39 @@ func New(cfg *config.Config) (*Facilitator, error) {
 func (f *Facilitator) initEVMClients() error {
 	supportedNetworks := f.config.GetSupportedNetworks()
 
+	if len(supportedNetworks) == 0 {
+		// Create EVM facilitator for this network
+		evmFacilitator, err := NewEVMFacilitator(
+			f.config.Facilitator.DefaultChainRPC,
+			f.config.Facilitator.DefaultChainID,
+			f.config.Facilitator.DefaultTokenAddress,
+			f.config.Facilitator.PrivateKey,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create EVM facilitator for network %s: %w", f.config.Facilitator.DefaultChainNetwork, err)
+		}
+
+		f.evmClients[f.config.Facilitator.DefaultChainNetwork] = evmFacilitator
+		return nil
+	}
+
 	for _, network := range supportedNetworks {
 		// Get RPC URL for the network
-		rpcURL, err := f.getRPCURL(network)
+		rpcURL, err := f.config.GetChainRPC(network)
 		if err != nil {
 			return fmt.Errorf("failed to get RPC URL for network %s: %w", network, err)
 		}
 
 		// Get chain ID for the network
-		chainID, err := utils.GetChainID(network)
+		chainID, err := f.config.GetChainID(network)
 		if err != nil {
 			return fmt.Errorf("failed to get chain ID for network %s: %w", network, err)
 		}
 
 		// Get token contract address for the network
-		tokenAddress := f.config.GetTokenAddress(network)
-		if tokenAddress == "" {
-			// Try to get from utils as fallback
-			addr, err := utils.GetTokenAddress(network)
-			if err != nil {
-				return fmt.Errorf("failed to get token contract address for network %s: %w", network, err)
-			}
-			tokenAddress = addr.Hex()
+		tokenAddress, err := f.config.GetTokenAddress(network)
+		if err != nil {
+			return fmt.Errorf("failed to get token contract address for network %s: %w", network, err)
 		}
 
 		// Create EVM facilitator for this network
@@ -65,7 +75,7 @@ func (f *Facilitator) initEVMClients() error {
 			rpcURL,
 			chainID,
 			tokenAddress,
-			f.config.Ethereum.PrivateKey,
+			f.config.Facilitator.PrivateKey,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create EVM facilitator for network %s: %w", network, err)
@@ -77,40 +87,22 @@ func (f *Facilitator) initEVMClients() error {
 	return nil
 }
 
-// getRPCURL gets the RPC URL for a network
-func (f *Facilitator) getRPCURL(network string) (string, error) {
-	// First check configuration
-	if configURL, exists := f.config.Ethereum.ChainConfigs[network]; exists {
-		return configURL, nil
-	}
-
-	// Fallback to hardcoded URLs
-	rpcURLs := map[string]string{
-		"ethereum-sepolia": "https://sepolia.infura.io/v3/your-project-id",
-		"ethereum":         "https://mainnet.infura.io/v3/your-project-id",
-		"base-sepolia":     "https://sepolia.base.org",
-		"base":             "https://mainnet.base.org",
-		"avalanche-fuji":   "https://api.avax-test.network/ext/bc/C/rpc",
-		"avalanche":        "https://api.avax.network/ext/bc/C/rpc",
-		"polygon":          "https://polygon-rpc.com",
-		"polygon-mumbai":   "https://rpc-mumbai.maticvigil.com",
-	}
-
-	if url, exists := rpcURLs[network]; exists {
-		return url, nil
-	}
-
-	// Fallback to default RPC URL
-	return f.config.Ethereum.DefaultRPCURL, nil
-}
-
 // Verify verifies a payment payload
 func (f *Facilitator) Verify(ctx context.Context, req *facilitatorTypes.VerifyRequest) (*facilitatorTypes.VerifyResponse, error) {
 	// Validate scheme
-	if err := utils.ValidateScheme(req.PaymentRequirements.Scheme); err != nil {
+	if err := f.validateScheme(req.PaymentRequirements.Scheme); err != nil {
 		return &facilitatorTypes.VerifyResponse{
 			IsValid:       false,
 			InvalidReason: "unsupported_scheme",
+			Payer:         "",
+		}, nil
+	}
+
+	// Validate network
+	if err := f.validateNetwork(req.PaymentRequirements.Network); err != nil {
+		return &facilitatorTypes.VerifyResponse{
+			IsValid:       false,
+			InvalidReason: "invalid_network",
 			Payer:         "",
 		}, nil
 	}
@@ -131,7 +123,7 @@ func (f *Facilitator) Verify(ctx context.Context, req *facilitatorTypes.VerifyRe
 // Settle settles a payment
 func (f *Facilitator) Settle(ctx context.Context, req *facilitatorTypes.VerifyRequest) (*facilitatorTypes.SettleResponse, error) {
 	// Validate scheme
-	if err := utils.ValidateScheme(req.PaymentRequirements.Scheme); err != nil {
+	if err := f.validateScheme(req.PaymentRequirements.Scheme); err != nil {
 		return &facilitatorTypes.SettleResponse{
 			Success:     false,
 			ErrorReason: "unsupported_scheme",
@@ -161,7 +153,7 @@ func (f *Facilitator) GetSupported() *facilitatorTypes.SupportedResponse {
 	var kinds []facilitatorTypes.SupportedKind
 
 	for _, network := range f.config.GetSupportedNetworks() {
-		for _, scheme := range f.config.Supported.Schemes {
+		for _, scheme := range f.config.GetSupportedSchemes() {
 			kinds = append(kinds, facilitatorTypes.SupportedKind{
 				X402Version: 1,
 				Scheme:      scheme,
@@ -228,6 +220,28 @@ func (f *Facilitator) DiscoverResources(ctx context.Context, resourceType string
 		X402Version: 1,
 		Items:       paginatedItems,
 	}, nil
+}
+
+func (f *Facilitator) validateScheme(scheme string) error {
+	if len(f.config.Supported.Schemes) > 0 {
+		for _, supported := range f.config.Supported.Schemes {
+			if supported == scheme {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("unsupported scheme: %s", scheme)
+}
+
+func (f *Facilitator) validateNetwork(network string) error {
+	if len(f.config.Supported.Networks) > 0 {
+		for _, supported := range f.config.Supported.Networks {
+			if supported == network {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("unsupported network: %s", network)
 }
 
 // verifyExact handles exact scheme verification

@@ -94,6 +94,12 @@ func (tcu *TokenContractUtils) GetTokenBalanceWithContext(ownerAddress string, c
 	tokenAddr := common.HexToAddress(tcu.tokenAddress)
 	ownerAddr := common.HexToAddress(ownerAddress)
 
+	// Test connection with a simple call
+	_, err := tcu.client.ChainID(ctx)
+	if err != nil {
+		return big.NewInt(0), fmt.Errorf("client connection failed: %w", err)
+	}
+
 	// ERC20 balanceOf function ABI
 	balanceABI := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
 

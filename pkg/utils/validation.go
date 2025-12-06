@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
@@ -9,12 +8,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
 	eip712 "github.com/x402/go-x402-facilitator/pkg/eip712full"
 	"github.com/x402/go-x402-facilitator/pkg/types"
@@ -221,115 +217,6 @@ func HashTypedDataBytesByEthAccount(typedData *eip712.TypedData) ([]byte, error)
 		digest...,
 	))
 	return fullHash, nil
-}
-
-// ValidateNetwork checks if the network is supported
-func ValidateNetwork(network string) error {
-	for _, supported := range SupportedEVMNetworks {
-		if supported == network {
-			return nil
-		}
-	}
-	return fmt.Errorf("unsupported network: %s", network)
-}
-
-// ValidateScheme checks if the scheme is supported
-func ValidateScheme(scheme string) error {
-	if scheme != "exact" {
-		return fmt.Errorf("unsupported scheme: %s", scheme)
-	}
-	return nil
-}
-
-// GetChainID returns the chain ID for the given network
-func GetChainID(network string) (int64, error) {
-	chainID, exists := SupportedChains[network]
-	if !exists {
-		return 0, fmt.Errorf("network %s not found", network)
-	}
-	return chainID, nil
-}
-
-// GetTokenAddress returns the Token contract address for the given network
-func GetTokenAddress(network string) (common.Address, error) {
-	address, exists := TokenContractAddresses[network]
-	if !exists {
-		return common.Address{}, fmt.Errorf("Token contract address for network %s not found", network)
-	}
-	return common.HexToAddress(address), nil
-}
-
-// CheckTokenBalance checks the token balance of an address
-func CheckTokenBalance(client *ethclient.Client, network, address string) (*big.Int, error) {
-	// Input validation
-	if client == nil {
-		return big.NewInt(0), fmt.Errorf("ethereum client is nil - blockchain connection not established")
-	}
-
-	if network == "" {
-		return big.NewInt(0), fmt.Errorf("network cannot be empty")
-	}
-
-	if address == "" {
-		return big.NewInt(0), fmt.Errorf("address cannot be empty")
-	}
-
-	// Validate address format
-	if !common.IsHexAddress(address) {
-		return big.NewInt(0), fmt.Errorf("invalid address format: %s", address)
-	}
-
-	tokenAddr, err := GetTokenAddress(network)
-	if err != nil {
-		return big.NewInt(0), fmt.Errorf("failed to get Token contract address for network %s: %w", network, err)
-	}
-
-	addr := common.HexToAddress(address)
-
-	// Check if client connection is actually working
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Test connection with a simple call
-	_, err = client.ChainID(ctx)
-	if err != nil {
-		return big.NewInt(0), fmt.Errorf("ethereum client connection failed: %w", err)
-	}
-
-	// Token contract ABI (only the balanceOf function)
-	tokenABIJSON := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
-
-	parsedABI, err := abi.JSON(strings.NewReader(tokenABIJSON))
-	if err != nil {
-		return big.NewInt(0), fmt.Errorf("failed to parse Token contract ABI: %w", err)
-	}
-
-	// Create a callable contract with proper backend
-	callOpts := &bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	}
-
-	// Use the ethclient as the backend
-	boundContract := bind.NewBoundContract(tokenAddr, parsedABI, client, client, client)
-
-	var results []interface{}
-	err = boundContract.Call(callOpts, &results, "balanceOf", addr)
-	if err != nil {
-		// If contract call fails, return zero balance instead of panicking
-		return big.NewInt(0), fmt.Errorf("failed to call Token balanceOf: %w", err)
-	}
-
-	if len(results) == 0 {
-		return big.NewInt(0), nil
-	}
-
-	balance, ok := results[0].(*big.Int)
-	if !ok {
-		return big.NewInt(0), fmt.Errorf("invalid balance type returned")
-	}
-
-	return balance, nil
 }
 
 // IsValidTimestamp checks if a timestamp is within the valid range

@@ -35,7 +35,7 @@ const ReceiptStatusSuccess = uint64(1)
 // EVMFacilitator handles EVM-based payment verification and settlement
 type EVMFacilitator struct {
 	client       *ethclient.Client
-	chainID      int64
+	chainID      uint64
 	tokenAddr    common.Address
 	privateKey   *ecdsa.PrivateKey
 	auth         *bind.TransactOpts
@@ -44,7 +44,7 @@ type EVMFacilitator struct {
 }
 
 // NewEVMFacilitator creates a new EVM facilitator instance
-func NewEVMFacilitator(rpcURL string, chainID int64, tokenAddress string, privateKeyHex string) (*EVMFacilitator, error) {
+func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, privateKeyHex string) (*EVMFacilitator, error) {
 	// Input validation
 	if rpcURL == "" {
 		return nil, fmt.Errorf("RPC URL cannot be empty")
@@ -56,10 +56,6 @@ func NewEVMFacilitator(rpcURL string, chainID int64, tokenAddress string, privat
 
 	if !common.IsHexAddress(tokenAddress) {
 		return nil, fmt.Errorf("invalid Token contract address format: %s", tokenAddress)
-	}
-
-	if chainID <= 0 {
-		return nil, fmt.Errorf("chain ID must be positive: %d", chainID)
 	}
 
 	// Attempt to connect to Ethereum client with timeout
@@ -79,9 +75,9 @@ func NewEVMFacilitator(rpcURL string, chainID int64, tokenAddress string, privat
 	}
 
 	// Warn if chain IDs don't match (but don't fail)
-	if networkChainID.Int64() != chainID {
+	if networkChainID.Uint64() != chainID {
 		fmt.Printf("Warning: Network chain ID (%d) doesn't match configured chain ID (%d)\n",
-			networkChainID.Int64(), chainID)
+			networkChainID.Uint64(), chainID)
 		fmt.Printf("   This may cause issues with transaction processing\n")
 	}
 
@@ -96,7 +92,7 @@ func NewEVMFacilitator(rpcURL string, chainID int64, tokenAddress string, privat
 
 	var auth *bind.TransactOpts
 	if privateKey != nil {
-		auth, err = bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+		auth, err = bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(int64(chainID)))
 		if err != nil {
 			client.Close()
 			return nil, fmt.Errorf("failed to create transactor: %w", err)
@@ -152,24 +148,6 @@ func (f *EVMFacilitator) getTokenVersion() string {
 
 // Verify verifies an exact EVM payment payload
 func (f *EVMFacilitator) Verify(ctx context.Context, payload *facilitatorTypes.PaymentPayload, requirements *facilitatorTypes.PaymentRequirements) (*facilitatorTypes.VerifyResponse, error) {
-	// Validate scheme
-	if payload.Scheme != SCHEME_EXACT || requirements.Scheme != SCHEME_EXACT {
-		return &facilitatorTypes.VerifyResponse{
-			IsValid:       false,
-			InvalidReason: "unsupported_scheme",
-			Payer:         "",
-		}, nil
-	}
-
-	// Validate network
-	if err := utils.ValidateNetwork(requirements.Network); err != nil {
-		return &facilitatorTypes.VerifyResponse{
-			IsValid:       false,
-			InvalidReason: "invalid_network",
-			Payer:         "",
-		}, nil
-	}
-
 	// Extract exact EVM payload
 	exactPayload, err := f.extractExactEVMPayload(payload)
 	if err != nil {
@@ -468,8 +446,8 @@ func (f *EVMFacilitator) verifyBalance(ctx context.Context, payload *facilitator
 	}
 
 	// Validate required fields
-	if requirements.Network == "" {
-		return fmt.Errorf("network cannot be empty")
+	if requirements.Asset == "" {
+		return fmt.Errorf("asset cannot be empty")
 	}
 
 	if payload.Authorization.From == "" {
@@ -480,12 +458,13 @@ func (f *EVMFacilitator) verifyBalance(ctx context.Context, payload *facilitator
 		return fmt.Errorf("max amount required cannot be empty")
 	}
 
-	balance, err := utils.CheckTokenBalance(f.client, requirements.Network, payload.Authorization.From)
+	// Check if client connection is actually working
+	tcu := utils.NewTokenContractUtils(requirements.Asset, f.client)
+	balance, err := tcu.GetTokenBalanceWithContext(payload.Authorization.From, ctx)
 	if err != nil {
 		// If balance check fails due to connection issues, allow the payment to proceed
 		// This is a graceful degradation approach
-		if strings.Contains(err.Error(), "connection failed") ||
-			strings.Contains(err.Error(), "client is nil") ||
+		if strings.Contains(err.Error(), "client connection failed") ||
 			strings.Contains(err.Error(), "failed to call token balanceOf") {
 			fmt.Printf("Warning: Balance check failed due to blockchain connectivity issues: %v\n", err)
 			fmt.Printf("   Proceeding with payment verification without balance check\n")
