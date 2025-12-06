@@ -57,6 +57,12 @@ type VerifyResponse struct {
 	Payer         string `json:"payer"`
 }
 
+// SettleRequest represents the request body for payment settlement
+type SettleRequest struct {
+	PaymentPayload      PaymentPayload      `json:"paymentPayload"`
+	PaymentRequirements PaymentRequirements `json:"paymentRequirements"`
+}
+
 // SettleResponse represents the response from /settle endpoint
 type SettleResponse struct {
 	Success     bool   `json:"success"`

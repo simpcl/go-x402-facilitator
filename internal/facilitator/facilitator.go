@@ -241,6 +241,9 @@ func (f *Facilitator) validateNetwork(network string) error {
 			}
 		}
 	}
+	if network == f.config.Facilitator.DefaultChainNetwork {
+		return nil
+	}
 	return fmt.Errorf("unsupported network: %s", network)
 }
 
