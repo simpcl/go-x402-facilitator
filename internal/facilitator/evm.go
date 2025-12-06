@@ -51,24 +51,29 @@ func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, priva
 	}
 
 	if tokenAddress == "" {
-		return nil, fmt.Errorf("Token contract address cannot be empty")
+		return nil, fmt.Errorf("token contract address cannot be empty")
 	}
 
 	if !common.IsHexAddress(tokenAddress) {
-		return nil, fmt.Errorf("invalid Token contract address format: %s", tokenAddress)
+		return nil, fmt.Errorf("invalid token contract address format: %s", tokenAddress)
 	}
 
 	// Attempt to connect to Ethereum client with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Use a longer timeout for initial connection (30 seconds)
+	connectCtx, connectCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer connectCancel()
 
-	client, err := ethclient.DialContext(ctx, rpcURL)
+	client, err := ethclient.DialContext(connectCtx, rpcURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Ethereum client at %s: %w", rpcURL, err)
 	}
 
 	// Verify the connection is working by checking chain ID
-	networkChainID, err := client.ChainID(ctx)
+	// Use a separate context with timeout for ChainID call to ensure sufficient time
+	verifyCtx, verifyCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer verifyCancel()
+
+	networkChainID, err := client.ChainID(verifyCtx)
 	if err != nil {
 		client.Close()
 		return nil, fmt.Errorf("failed to verify connection to Ethereum client: %w", err)
@@ -109,8 +114,12 @@ func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, priva
 	}
 
 	// Fetch token name and version from contract
+	// Use a separate context with timeout for contract call
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer fetchCancel()
+
 	tcu := utils.NewTokenContractUtils(tokenAddr.Hex(), client)
-	tokenName, tokenVersion, err := tcu.FetchTokenInfoWithContext(ctx)
+	tokenName, tokenVersion, err := tcu.FetchTokenInfoWithContext(fetchCtx)
 	if err != nil {
 		// Log warning but don't fail - use defaults
 		log.Warn().
