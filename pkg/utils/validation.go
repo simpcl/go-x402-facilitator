@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"strings"
@@ -85,6 +86,96 @@ func RecoverAddress(typedData *eip712.TypedData, signatureHex string) (common.Ad
 	}
 
 	return crypto.PubkeyToAddress(*recoveredAddr), nil
+}
+
+func BuildTypedData(
+	from string,
+	to string,
+	value string,
+	validAfter string,
+	validBefore string,
+	nonce string,
+	verifyingContract string,
+	chainID uint64,
+	tokenName string,
+	tokenVersion string,
+) *eip712.TypedData {
+	// Ensure addresses are lowercase for EIP-712 hash consistency
+	// The client signs with lowercase addresses, so we must match that format
+	fromLower := strings.ToLower(from)
+	toLower := strings.ToLower(to)
+
+	typedData := &eip712.TypedData{
+		Types: map[string][]eip712.TypedDataField{
+			"EIP712Domain": {
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"TransferWithAuthorization": {
+				{Name: "from", Type: "address"},
+				{Name: "to", Type: "address"},
+				{Name: "value", Type: "uint256"},
+				{Name: "validAfter", Type: "uint256"},
+				{Name: "validBefore", Type: "uint256"},
+				{Name: "nonce", Type: "bytes32"},
+			},
+		},
+		PrimaryType: "TransferWithAuthorization",
+		Domain: eip712.TypedDataDomain{
+			Name:              tokenName,
+			Version:           tokenVersion,
+			ChainId:           chainID,
+			VerifyingContract: common.HexToAddress(verifyingContract),
+		},
+		Message: map[string]interface{}{
+			"from":        fromLower, // Contract uses address type, so maybe this is not a string, but an address
+			"to":          toLower,   // Contract uses address type, so maybe this is not a string, but an address
+			"value":       value,
+			"validAfter":  validAfter,
+			"validBefore": validBefore,
+			"nonce":       nonce,
+		},
+	}
+	// Log transaction parameters for debugging
+	log.Info().
+		Str("from", fromLower).
+		Str("to", toLower).
+		Str("value", value).
+		Str("validAfter", validAfter).
+		Str("validBefore", validBefore).
+		Str("nonce", nonce).
+		Str("verifyingContract", verifyingContract).
+		Uint64("chainID", chainID).
+		Str("tokenName", tokenName).
+		Str("tokenVersion", tokenVersion).
+		Msg("Build TypedData for transferWithAuthorization")
+	return typedData
+}
+
+func GenerateTypedDataSignature(typedData *eip712.TypedData, privateKey *ecdsa.PrivateKey) (string, error) {
+	if typedData == nil {
+		return "", fmt.Errorf("typedData is nil")
+	}
+	if privateKey == nil {
+		return "", fmt.Errorf("privateKey is nil")
+	}
+
+	// Generate hash
+	typedDataHashBytes, err := HashTypedDataBytes(typedData)
+	if err != nil {
+		return "", fmt.Errorf("Failed to hash: %w", err)
+	}
+
+	// Sign the hash
+	signature, err := crypto.Sign(typedDataHashBytes, privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign hash: %w", err)
+	}
+
+	// Convert to hex string
+	return hexutil.Encode(signature), nil
 }
 
 // HashTypedData creates the hash of EIP-712 typed data

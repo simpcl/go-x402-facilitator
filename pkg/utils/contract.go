@@ -165,3 +165,94 @@ func (tcu *TokenContractUtils) GetDomainSeparator(ctx context.Context) ([]byte, 
 
 	return domainBytes[:], nil
 }
+
+func PackTransferWithAuthorization(
+	from string,
+	to string,
+	valueStr string,
+	validAfterStr string,
+	validBeforeStr string,
+	nonceStr string,
+	V *big.Int,
+	R *big.Int,
+	S *big.Int,
+) ([]byte, error) {
+	fromAddr := common.HexToAddress(from)
+	toAddr := common.HexToAddress(to)
+	value, ok := new(big.Int).SetString(valueStr, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid value: %s", valueStr)
+	}
+	validAfter, ok := new(big.Int).SetString(validAfterStr, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid validAfter: %s", validAfterStr)
+	}
+	validBefore, ok := new(big.Int).SetString(validBeforeStr, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid validBefore: %s", validBeforeStr)
+	}
+	nonce := common.HexToHash(nonceStr)
+
+	// Extract v, r, s values
+	// var v uint8
+	if V == nil || R == nil || S == nil {
+		return nil, fmt.Errorf("invalid v, r, s values")
+	}
+	var v uint8 = 0
+	v = uint8(V.Uint64())
+
+	// Normalize v value: if it's 0 or 1, add 27 to get 27 or 28
+	// If it's already 27 or 28, keep it as is
+	if v == 0 || v == 1 {
+		v += 27
+	}
+	// Ensure v is 27 or 28
+	if v != 27 && v != 28 {
+		return nil, fmt.Errorf("invalid v value: %d (must be 27 or 28)", v)
+	}
+
+	// Convert *big.Int to [32]byte for ABI compatibility
+	var rBytes [32]byte
+	var sBytes [32]byte
+
+	rBytes = common.BigToHash(R)
+	sBytes = common.BigToHash(S)
+
+	// Generic token contract ABI (transferWithAuthorization function)
+	tokenABIString := `[{
+		"name": "transferWithAuthorization",
+		"type": "function",
+		"stateMutability": "nonpayable",
+		"inputs": [
+			{"name": "from", "type": "address"},
+			{"name": "to", "type": "address"},
+			{"name": "value", "type": "uint256"},
+			{"name": "validAfter", "type": "uint256"},
+			{"name": "validBefore", "type": "uint256"},
+			{"name": "nonce", "type": "bytes32"},
+			{"name": "v", "type": "uint8"},
+			{"name": "r", "type": "bytes32"},
+			{"name": "s", "type": "bytes32"}
+		],
+		"outputs": []
+	}]`
+
+	tokenABI, err := abi.JSON(strings.NewReader(tokenABIString))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token ABI: %w", err)
+	}
+
+	// Pack the function call data with correct types
+	return tokenABI.Pack(
+		"transferWithAuthorization",
+		fromAddr,
+		toAddr,
+		value,
+		validAfter,
+		validBefore,
+		nonce,
+		v,
+		rBytes,
+		sBytes,
+	)
+}
