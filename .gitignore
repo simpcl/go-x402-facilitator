@@ -22,6 +22,11 @@ go.work
 .env.local
 .env.production
 
+config.yaml
+examples/go.sum
+examples/start.local.sh
+
+
 # Logs
 logs/
 *.log
