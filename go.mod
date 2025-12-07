@@ -1,4 +1,4 @@
-module github.com/x402/go-x402-facilitator
+module go-x402-facilitator
 
 go 1.21
 

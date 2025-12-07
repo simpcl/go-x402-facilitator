@@ -9,6 +9,9 @@ import (
 
 	"crypto/ecdsa"
 
+	facilitatorTypes "go-x402-facilitator/pkg/types"
+	"go-x402-facilitator/pkg/utils"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,8 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
-	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
-	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
 
 const (

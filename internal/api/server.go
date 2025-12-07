@@ -10,9 +10,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
-	"github.com/x402/go-x402-facilitator/internal/config"
-	"github.com/x402/go-x402-facilitator/internal/facilitator"
-	"github.com/x402/go-x402-facilitator/internal/middleware"
+	"go-x402-facilitator/internal/config"
+	"go-x402-facilitator/internal/facilitator"
+	"go-x402-facilitator/internal/middleware"
 )
 
 // Server represents the HTTP server

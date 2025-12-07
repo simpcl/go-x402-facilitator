@@ -11,9 +11,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/x402/go-x402-facilitator/internal/api"
-	"github.com/x402/go-x402-facilitator/internal/config"
-	"github.com/x402/go-x402-facilitator/internal/facilitator"
+	"go-x402-facilitator/internal/api"
+	"go-x402-facilitator/internal/config"
+	"go-x402-facilitator/internal/facilitator"
 )
 
 var (

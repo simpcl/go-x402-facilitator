@@ -7,12 +7,13 @@ import (
 	"math/big"
 	"time"
 
+	"go-x402-facilitator/pkg/utils"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/x402/go-x402-facilitator/pkg/utils"
 )
 
 // Common constants

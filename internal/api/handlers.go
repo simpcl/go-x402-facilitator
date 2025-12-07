@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"github.com/x402/go-x402-facilitator/internal/facilitator"
-	"github.com/x402/go-x402-facilitator/pkg/types"
+	"go-x402-facilitator/internal/facilitator"
+	"go-x402-facilitator/pkg/types"
 )
 
 // Handler contains the API handlers

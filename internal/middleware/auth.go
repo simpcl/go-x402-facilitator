@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/x402/go-x402-facilitator/internal/config"
-	"github.com/x402/go-x402-facilitator/pkg/types"
+	"go-x402-facilitator/internal/config"
+	"go-x402-facilitator/pkg/types"
 )
 
 // AuthMiddleware provides authentication middleware

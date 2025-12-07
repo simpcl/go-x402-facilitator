@@ -279,12 +279,6 @@ go build -o x402-facilitator ./cmd
 
 This project is licensed under the Apache License - see the [LICENSE](LICENSE) file for details.
 
-## Support
-
-- **Issues:** [GitHub Issues](https://github.com/x402/go-x402-facilitator/issues)
-- **Documentation:** [X402 Specification](https://github.com/x402/specification)
-- **Community:** [Discord](https://discord.gg/x402)
-
 ## Roadmap
 
 - [ ] Support for additional payment schemes (deferred, subscription)

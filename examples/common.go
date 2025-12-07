@@ -12,8 +12,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
-	"github.com/x402/go-x402-facilitator/pkg/utils"
+	facilitatorTypes "go-x402-facilitator/pkg/types"
+	"go-x402-facilitator/pkg/utils"
 )
 
 // getTokenInfo fetches token name and version from contract

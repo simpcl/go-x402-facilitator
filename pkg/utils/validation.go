@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
+	eip712 "go-x402-facilitator/pkg/eip712full"
+	"go-x402-facilitator/pkg/types"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog/log"
-	eip712 "github.com/x402/go-x402-facilitator/pkg/eip712full"
-	"github.com/x402/go-x402-facilitator/pkg/types"
 )
 
 // SupportedEVMNetworks lists all supported EVM networks

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/x402/go-x402-facilitator/internal/config"
-	facilitatorTypes "github.com/x402/go-x402-facilitator/pkg/types"
+	"go-x402-facilitator/internal/config"
+	facilitatorTypes "go-x402-facilitator/pkg/types"
 )
 
 // Facilitator is the main facilitator service
