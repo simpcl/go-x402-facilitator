@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"os"
+	"strconv"
 	"time"
 
 	"go-x402-facilitator/pkg/utils"
@@ -16,14 +18,42 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// Common constants
-const (
+var (
 	ChainNetwork   = "localhost"
+	ChainID        = uint64(1337)
 	ChainRPC       = "http://127.0.0.1:8545"
-	ChainID        = 1337
 	TokenContract  = "0xC35898F0f03C0894107869844d7467Af417aD868"
 	FacilitatorURL = "http://localhost:8080"
 )
+
+func init() {
+	var s string
+	s = os.Getenv("CHAIN_NETWORK")
+	if s != "" {
+		ChainNetwork = s
+	}
+	s = os.Getenv("CHAIN_ID")
+	if s != "" {
+		var err error
+		ChainID, err = strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			fmt.Println("Error parsing ChainID:", err)
+			os.Exit(-1)
+		}
+	}
+	s = os.Getenv("CHAIN_RPC")
+	if s != "" {
+		ChainRPC = s
+	}
+	s = os.Getenv("TOKEN_CONTRACT")
+	if s != "" {
+		TokenContract = s
+	}
+	s = os.Getenv("FACILITATOR_URL")
+	if s != "" {
+		FacilitatorURL = s
+	}
+}
 
 // Account represents a participant in the payment flow
 type Account struct {
@@ -51,7 +81,7 @@ func NewAccount(privateKeyHex string) (*Account, error) {
 	}
 
 	// Create transaction auth
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(ChainID))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(int64(ChainID)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}

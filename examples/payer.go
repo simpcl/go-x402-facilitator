@@ -119,7 +119,8 @@ func main() {
 	payeeAddress := GetPayeeWalletAddress()
 
 	// Payment details
-	amount := "1000000000000000000" // 1 Token (assuming 6 decimals)
+	// amount := "1000000000000000000" // 1 Token (assuming 18 decimals)
+	amount := "1000000" // 1 Token (assuming 6 decimals)
 	resource := "https://api.example.com/premium-content"
 	description := "Premium content access"
 

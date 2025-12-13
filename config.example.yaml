@@ -35,7 +35,10 @@ supported:
   networks: []
   chain_ids:
     bnbtestnet: 97
+    sepolia: 11155111
   chain_rpcs:
     bnbtestnet: "https://bsc-testnet-dataseed.bnbchain.org"
+    sepolia: "https://ethereum-sepolia-rpc.publicnode.com"
   token_contracts:
-    bnbtestnet: ""
+    bnbtestnet: "0xD19a0f06257f31F214F9bb3B5be361b30D916f32" # GenericToken (MYGT) (only for test) in BNB Testnet
+    sepolia: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" # USDC in Sepolia
