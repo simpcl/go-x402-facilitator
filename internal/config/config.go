@@ -129,6 +129,7 @@ func setDefaults() {
 	viper.SetDefault("facilitator.default_token_name", "GenericToken")
 	viper.SetDefault("facilitator.default_token_version", "1")
 	viper.SetDefault("facilitator.default_token_decimals", 6)
+	viper.SetDefault("facilitator.private_key", "")
 	viper.SetDefault("facilitator.gas_limit", 100000)
 	viper.SetDefault("facilitator.gas_price", "")
 
