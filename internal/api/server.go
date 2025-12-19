@@ -6,29 +6,32 @@ import (
 	"net/http"
 	"time"
 
+	"go-x402-facilitator/internal/config"
+	"go-x402-facilitator/internal/facilitator"
+	"go-x402-facilitator/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
-	"go-x402-facilitator/internal/config"
-	"go-x402-facilitator/internal/facilitator"
-	"go-x402-facilitator/internal/middleware"
 )
 
 // Server represents the HTTP server
 type Server struct {
-	config      *config.Config
-	facilitator *facilitator.Facilitator
-	httpServer  *http.Server
-	handler     *Handler
+	config                 *config.Config
+	facilitator            *facilitator.Facilitator
+	httpServer             *http.Server
+	handler                *Handler
+	resourceGatewayHandler *ResourceGatewayHandler
 }
 
 // NewServer creates a new HTTP server
 func NewServer(cfg *config.Config, f *facilitator.Facilitator) *Server {
 	return &Server{
-		config:      cfg,
-		facilitator: f,
-		handler:     NewHandler(f),
+		config:                 cfg,
+		facilitator:            f,
+		handler:                NewHandler(f),
+		resourceGatewayHandler: NewResourceGatewayHandler(f, cfg),
 	}
 }
 
@@ -49,6 +52,7 @@ func (s *Server) Start() error {
 
 	// Register routes
 	s.handler.RegisterRoutes(router)
+	s.resourceGatewayHandler.RegisterRoutes(router)
 
 	// Create HTTP server
 	s.httpServer = &http.Server{

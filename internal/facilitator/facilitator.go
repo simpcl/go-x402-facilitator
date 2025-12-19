@@ -168,60 +168,6 @@ func (f *Facilitator) GetSupported() *facilitatorTypes.SupportedResponse {
 	}
 }
 
-// DiscoverResources returns discovered resources (placeholder implementation)
-func (f *Facilitator) DiscoverResources(ctx context.Context, resourceType string, limit, offset int) (*facilitatorTypes.DiscoveryResponse, error) {
-	// This is a placeholder implementation
-	// In a production environment, this would query a database or external service
-	// for available x402-enabled resources
-
-	items := []facilitatorTypes.DiscoveryItem{
-		{
-			Resource:    "https://api.example.com/premium-data",
-			Type:        "http",
-			X402Version: 1,
-			Accepts: []facilitatorTypes.PaymentRequirements{
-				{
-					Scheme:            "exact",
-					Network:           "base-sepolia",
-					MaxAmountRequired: "10000",
-					Resource:          "https://api.example.com/premium-data",
-					Description:       "Access to premium market data",
-					MimeType:          "application/json",
-					PayTo:             "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
-					MaxTimeoutSeconds: 60,
-					Asset:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-					Extra: map[string]interface{}{
-						"name":    "GenericToken",
-						"version": "1",
-					},
-				},
-			},
-			LastUpdated: 1703123456,
-		},
-	}
-
-	// Apply pagination
-	start := offset
-	if start > len(items) {
-		start = len(items)
-	}
-
-	end := start + limit
-	if end > len(items) {
-		end = len(items)
-	}
-
-	var paginatedItems []facilitatorTypes.DiscoveryItem
-	if start < len(items) {
-		paginatedItems = items[start:end]
-	}
-
-	return &facilitatorTypes.DiscoveryResponse{
-		X402Version: 1,
-		Items:       paginatedItems,
-	}, nil
-}
-
 func (f *Facilitator) validateScheme(scheme string) error {
 	if len(f.config.Supported.Schemes) > 0 {
 		for _, supported := range f.config.Supported.Schemes {

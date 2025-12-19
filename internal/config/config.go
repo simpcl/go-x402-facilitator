@@ -19,11 +19,12 @@ type Config struct {
 
 // ServerConfig represents HTTP server configuration
 type ServerConfig struct {
-	Host         string        `mapstructure:"host"`
-	Port         int           `mapstructure:"port"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
+	Host          string        `mapstructure:"host"`
+	Port          int           `mapstructure:"port"`
+	ReadTimeout   time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout  time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout   time.Duration `mapstructure:"idle_timeout"`
+	ResourcesFile string        `mapstructure:"resources_file"`
 }
 
 // EthereumConfig represents Ethereum client configuration
@@ -120,6 +121,7 @@ func setDefaults() {
 	viper.SetDefault("server.read_timeout", "30s")
 	viper.SetDefault("server.write_timeout", "30s")
 	viper.SetDefault("server.idle_timeout", "120s")
+	viper.SetDefault("server.resources_file", "resources.json")
 
 	// Ethereum defaults
 	viper.SetDefault("facilitator.default_chain_network", "localhost")

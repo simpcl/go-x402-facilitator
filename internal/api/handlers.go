@@ -3,12 +3,12 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strconv"
+
+	"go-x402-facilitator/internal/facilitator"
+	"go-x402-facilitator/pkg/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"go-x402-facilitator/internal/facilitator"
-	"go-x402-facilitator/pkg/types"
 )
 
 // Handler contains the API handlers
@@ -30,11 +30,6 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 		api.POST("/verify", h.Verify)
 		api.POST("/settle", h.Settle)
 		api.GET("/supported", h.GetSupported)
-	}
-
-	discovery := router.Group("/discovery")
-	{
-		discovery.GET("/resources", h.DiscoverResources)
 	}
 
 	// Health check endpoint
@@ -123,38 +118,6 @@ func (h *Handler) Settle(c *gin.Context) {
 // GetSupported handles the /facilitator/supported endpoint
 func (h *Handler) GetSupported(c *gin.Context) {
 	response := h.facilitator.GetSupported()
-	c.JSON(http.StatusOK, response)
-}
-
-// DiscoverResources handles the /discovery/resources endpoint
-func (h *Handler) DiscoverResources(c *gin.Context) {
-	// Parse query parameters
-	resourceType := c.Query("type")
-	limitStr := c.DefaultQuery("limit", "20")
-	offsetStr := c.DefaultQuery("offset", "0")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > 100 {
-		limit = 20
-	}
-
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
-
-	// Call facilitator
-	response, err := h.facilitator.DiscoverResources(c.Request.Context(), resourceType, limit, offset)
-	if err != nil {
-		log.Error().Err(err).Msg("Facilitator discover resources failed")
-		c.JSON(http.StatusInternalServerError, types.ErrorResponse{
-			Error:   "internal_error",
-			Message: "Internal server error during resource discovery",
-			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-
 	c.JSON(http.StatusOK, response)
 }
 

@@ -6,6 +6,7 @@ server:
   read_timeout: 30s
   write_timeout: 30s
   idle_timeout: 120s
+  resources_file: "resources.json"  # Path to resources configuration file
 
 facilitator:
   default_chain_rpc: "http://127.0.0.1:8545"
