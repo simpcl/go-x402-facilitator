@@ -10,8 +10,8 @@ server:
 facilitator:
   default_chain_rpc: "http://127.0.0.1:8545"
   default_chain_id: 1337
-  default_token_address: "0xC35898F0f03C0894107869844d7467Af417aD868"
-  default_token_name: "GenericToken"
+  default_token_address: "0xBA32c2Ee180e743cCe34CbbC86cb79278C116CEb"
+  default_token_name: "MyToken"
   default_token_version: "1"
   default_token_decimals: 6
   private_key: ""  # Set via environment variable X402_FACILITATOR_PRIVATE_KEY
@@ -34,11 +34,14 @@ supported:
   schemes: ["exact"]
   networks: []
   chain_ids:
-    bnbtestnet: 97
     sepolia: 11155111
+    bnbtestnet: 97
+    memo: 985
   chain_rpcs:
-    bnbtestnet: "https://bsc-testnet-dataseed.bnbchain.org"
     sepolia: "https://ethereum-sepolia-rpc.publicnode.com"
+    bnbtestnet: "https://bsc-testnet-dataseed.bnbchain.org"
+    memo: "https://chain.metamemo.one:8501"
   token_contracts:
-    bnbtestnet: "0xD19a0f06257f31F214F9bb3B5be361b30D916f32" # GenericToken (MYGT) (only for test) in BNB Testnet
     sepolia: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" # USDC in Sepolia
+    bnbtestnet: "0x99B816D50eeeFE2872aDa84DD66d500118Abb449" # AgentNetworkCoin (ANC) (only for test) in BNB Testnet
+    memo: "0x8d24Eb5b9f77a1a31c129491a026a0482af1BCEB" # AgentNetworkCoin (ANC) (only for test) in Memo
