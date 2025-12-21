@@ -81,7 +81,7 @@ func (h *ResourceGatewayHandler) RegisterRoutes(router *gin.Engine) {
 	}
 }
 
-// DiscoverResources handles the /discovery/resources endpoint
+// DiscoverResources handles the /resources/discover endpoint
 func (h *ResourceGatewayHandler) DiscoverResources(c *gin.Context) {
 	// Parse query parameters
 	resourceType := c.Query("type")
@@ -369,7 +369,7 @@ func (h *ResourceGatewayHandler) proxyRequest(c *gin.Context, resource *Resource
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
 		// Preserve original path and query
-		req.URL.Path = c.Param("path")
+		req.URL.Path = c.Request.URL.Path
 		req.URL.RawQuery = c.Request.URL.RawQuery
 		// Remove X-Payment header before forwarding
 		req.Header.Del("X-Payment")

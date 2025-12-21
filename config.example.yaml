@@ -9,6 +9,7 @@ server:
   resources_file: "resources.json"  # Path to resources configuration file
 
 facilitator:
+  default_chain_network: "localhost"
   default_chain_rpc: "http://127.0.0.1:8545"
   default_chain_id: 1337
   default_token_address: "0xBA32c2Ee180e743cCe34CbbC86cb79278C116CEb"
