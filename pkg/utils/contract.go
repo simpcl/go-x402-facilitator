@@ -31,9 +31,9 @@ func (tcu *TokenContractUtils) FetchTokenInfo() (string, string, error) {
 func (tcu *TokenContractUtils) FetchTokenInfoWithContext(ctx context.Context) (string, string, error) {
 	tokenAddr := common.HexToAddress(tcu.tokenAddress)
 
-	// ERC20 name() function ABI
+	// ERC20 Token name() function ABI
 	nameABI := `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-	// GenericToken version() function ABI
+	// ERC20 Token version() function ABI
 	versionABI := `[{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"type":"function"}]`
 
 	nameParsed, err := abi.JSON(strings.NewReader(nameABI))

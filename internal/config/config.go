@@ -128,7 +128,7 @@ func setDefaults() {
 	viper.SetDefault("facilitator.default_chain_rpc", "http://127.0.0.1:8545")
 	viper.SetDefault("facilitator.default_chain_id", 1337)
 	viper.SetDefault("facilitator.default_token_address", "")
-	viper.SetDefault("facilitator.default_token_name", "GenericToken")
+	viper.SetDefault("facilitator.default_token_name", "MyToken")
 	viper.SetDefault("facilitator.default_token_version", "1")
 	viper.SetDefault("facilitator.default_token_decimals", 6)
 	viper.SetDefault("facilitator.private_key", "")

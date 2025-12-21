@@ -126,7 +126,7 @@ func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, priva
 		log.Warn().
 			Err(err).
 			Msg("Failed to fetch token name/version from contract, using defaults")
-		facilitator.tokenName = "GenericToken"
+		facilitator.tokenName = "MyToken"
 		facilitator.tokenVersion = "1"
 	} else {
 		facilitator.tokenName = tokenName
@@ -142,18 +142,12 @@ func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, priva
 
 // getTokenName returns the token name, with fallback to default
 func (f *EVMFacilitator) getTokenName() string {
-	if f.tokenName != "" {
-		return f.tokenName
-	}
-	return "GenericToken"
+	return f.tokenName
 }
 
 // getTokenVersion returns the token version, with fallback to default
 func (f *EVMFacilitator) getTokenVersion() string {
-	if f.tokenVersion != "" {
-		return f.tokenVersion
-	}
-	return "1"
+	return f.tokenVersion
 }
 
 // Verify verifies an exact EVM payment payload

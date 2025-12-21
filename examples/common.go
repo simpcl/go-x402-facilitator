@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,51 +9,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	facilitatorTypes "go-x402-facilitator/pkg/types"
 	"go-x402-facilitator/pkg/utils"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
-
-// getTokenInfo fetches token name and version from contract
-func getTokenInfo(contractAddress string) (string, string) {
-	client, err := ethclient.Dial(ChainRPC)
-	if err != nil {
-		fmt.Printf("Warning: Failed to connect to RPC, using defaults: %v\n", err)
-		return "GenericToken", "1"
-	}
-	defer client.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	tcu := utils.NewTokenContractUtils(contractAddress, client)
-
-	name, version, err := tcu.FetchTokenInfoWithContext(ctx)
-	if err != nil {
-		fmt.Printf("Warning: Failed to fetch token info: %v\n", err)
-		return "GenericToken", "1"
-	}
-	return name, version
-}
 
 // CreatePaymentPayload creates a complete X402 payment payload
 func CreatePaymentPayload(
 	account *Account,
 	to string,
 	value string,
-	validDuration int64,
-	verifyingContract string,
+	tokenName string,
+	tokenVersion string,
 ) (*facilitatorTypes.PaymentPayload, error) {
 
+	var validDuration int64 = 300
 	now := time.Now().Unix()
-	validAfter := now - 60000
+	validAfter := now - 600000
 	validBefore := now + validDuration
 
 	// Generate nonce (simplified - in production, use a proper nonce generation)
 	nonce := fmt.Sprintf("0x%x", crypto.Keccak256Hash([]byte(fmt.Sprintf("%d-%s-%s", now, account.Address.Hex(), to))).Hex())
-
-	tokenName, tokenVersion := getTokenInfo(verifyingContract)
 
 	typedData := utils.BuildTypedData(
 		account.Address.Hex(),
@@ -63,7 +39,7 @@ func CreatePaymentPayload(
 		fmt.Sprintf("%d", validAfter),
 		fmt.Sprintf("%d", validBefore),
 		nonce,
-		verifyingContract,
+		TokenContract,
 		ChainID,
 		tokenName,
 		tokenVersion,
@@ -109,18 +85,20 @@ func CreatePaymentRequirements(
 	amount string,
 	resource string,
 	description string,
-	asset string,
+	tokenName string,
+	tokenVersion string,
 ) *facilitatorTypes.PaymentRequirements {
 	return &facilitatorTypes.PaymentRequirements{
 		Scheme:            "exact",
 		Network:           ChainNetwork,
-		MaxAmountRequired: amount,
 		Resource:          resource,
 		Description:       description,
-		MimeType:          "application/json",
+		MaxAmountRequired: amount,
 		PayTo:             strings.ToLower(sellerAddress),
-		MaxTimeoutSeconds: 300, // 5 minutes
-		Asset:             asset,
+		AssetType:         "ERC20",
+		Asset:             strings.ToLower(TokenContract),
+		TokenName:         tokenName,
+		TokenVersion:      tokenVersion,
 	}
 }
 

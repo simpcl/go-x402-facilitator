@@ -22,7 +22,9 @@ var (
 	ChainNetwork   = "localhost"
 	ChainID        = uint64(1337)
 	ChainRPC       = "http://127.0.0.1:8545"
-	TokenContract  = "0xC35898F0f03C0894107869844d7467Af417aD868"
+	TokenContract  = "0xBA32c2Ee180e743cCe34CbbC86cb79278C116CEb"
+	TokenName      = "MyToken"
+	TokenVersion   = "1"
 	FacilitatorURL = "http://localhost:8080"
 )
 
@@ -48,6 +50,14 @@ func init() {
 	s = os.Getenv("TOKEN_CONTRACT")
 	if s != "" {
 		TokenContract = s
+	}
+	s = os.Getenv("TOKEN_NAME")
+	if s != "" {
+		TokenName = s
+	}
+	s = os.Getenv("TOKEN_VERSION")
+	if s != "" {
+		TokenVersion = s
 	}
 	s = os.Getenv("FACILITATOR_URL")
 	if s != "" {
@@ -111,6 +121,28 @@ func (a *Account) GetTokenBalance() (*big.Int, error) {
 		return nil, fmt.Errorf("failed to get token balance: %w", err)
 	}
 	return balance, nil
+}
+
+// GetTokenInfo fetches token name and version from contract
+func (a *Account) GetTokenInfo() (string, string) {
+	client, err := ethclient.Dial(ChainRPC)
+	if err != nil {
+		fmt.Printf("Warning: Failed to connect to RPC, using defaults: %v\n", err)
+		return TokenName, TokenVersion
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tcu := utils.NewTokenContractUtils(TokenContract, client)
+
+	name, version, err := tcu.FetchTokenInfoWithContext(ctx)
+	if err != nil {
+		fmt.Printf("Warning: Failed to fetch token info: %v\n", err)
+		return TokenName, TokenVersion
+	}
+	return name, version
 }
 
 // WaitForReceipt waits for transaction confirmation

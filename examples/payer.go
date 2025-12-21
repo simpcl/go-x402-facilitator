@@ -40,27 +40,35 @@ func (b *Payer) MakePayment(sellerAddress string, amount string, resource string
 	// Print payer info
 	b.account.PrintAccountInfo("Payer")
 
+	tokenName, tokenVersion := b.account.GetTokenInfo()
+	if tokenName == "" || tokenVersion == "" {
+		return fmt.Errorf("failed to get token info")
+	}
+	fmt.Printf("Token name: %s, Token version: %s\n", tokenName, tokenVersion)
+
+	// Create payment requirements
+	fmt.Println("Creating payment requirements...")
+	requirements := CreatePaymentRequirements(
+		sellerAddress,
+		amount,
+		resource,
+		description,
+		tokenName,
+		tokenVersion,
+	)
+
 	// Create payment payload
 	fmt.Println("Creating payment payload...")
 	payload, err := CreatePaymentPayload(
 		b.account,
 		sellerAddress,
 		amount,
-		300, // 5 minutes validity
-		TokenContract,
+		tokenName,
+		tokenVersion,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create payment payload: %w", err)
 	}
-
-	// Create payment requirements
-	requirements := CreatePaymentRequirements(
-		sellerAddress,
-		amount,
-		resource,
-		description,
-		TokenContract,
-	)
 
 	// Verify payment first
 	fmt.Println("Verifying payment with facilitator...")

@@ -34,13 +34,14 @@ type Authorization struct {
 type PaymentRequirements struct {
 	Scheme            string                 `json:"scheme"`
 	Network           string                 `json:"network"`
-	MaxAmountRequired string                 `json:"maxAmountRequired"`
 	Resource          string                 `json:"resource"`
 	Description       string                 `json:"description"`
-	MimeType          string                 `json:"mimeType"`
+	MaxAmountRequired string                 `json:"maxAmountRequired"`
 	PayTo             string                 `json:"payTo"`
-	MaxTimeoutSeconds int                    `json:"maxTimeoutSeconds"`
+	AssetType         string                 `json:"assetType"`
 	Asset             string                 `json:"asset"`
+	TokenName         string                 `json:"tokenName,omitempty"`
+	TokenVersion      string                 `json:"tokenVersion,omitempty"`
 	Extra             map[string]interface{} `json:"extra,omitempty"`
 }
 
