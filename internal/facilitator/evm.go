@@ -660,3 +660,11 @@ func (f *EVMFacilitator) waitForTransaction(ctx context.Context, txHash common.H
 		Status: receipt.Status,
 	}, nil
 }
+
+// Close closes the underlying Ethereum client connection
+func (f *EVMFacilitator) Close() error {
+	if f.client != nil {
+		f.client.Close()
+	}
+	return nil
+}

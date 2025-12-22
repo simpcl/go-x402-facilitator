@@ -4,41 +4,37 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"go-x402-facilitator/internal/config"
 	"go-x402-facilitator/internal/facilitator"
 	"go-x402-facilitator/internal/middleware"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
 )
 
 // Server represents the HTTP server
 type Server struct {
-	config                 *config.Config
-	facilitator            *facilitator.Facilitator
-	httpServer             *http.Server
-	handler                *Handler
-	resourceGatewayHandler *ResourceGatewayHandler
+	config      *config.Config
+	facilitator *facilitator.Facilitator
+	httpServer  *http.Server
+	handler     *Handler
 }
 
 // NewServer creates a new HTTP server
 func NewServer(cfg *config.Config, f *facilitator.Facilitator) *Server {
 	return &Server{
-		config:                 cfg,
-		facilitator:            f,
-		handler:                NewHandler(f),
-		resourceGatewayHandler: NewResourceGatewayHandler(f, cfg),
+		config:      cfg,
+		facilitator: f,
+		handler:     NewHandler(f),
 	}
 }
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	// Set Gin mode
-	if s.config.Monitoring.LogLevel == "debug" {
+	if s.config.Server.LogLevel == "debug" {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -52,7 +48,6 @@ func (s *Server) Start() error {
 
 	// Register routes
 	s.handler.RegisterRoutes(router)
-	s.resourceGatewayHandler.RegisterRoutes(router)
 
 	// Create HTTP server
 	s.httpServer = &http.Server{
@@ -103,51 +98,12 @@ func (s *Server) setupMiddleware(router *gin.Engine) {
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
-		Debug:          s.config.Monitoring.LogLevel == "debug",
+		Debug:          s.config.Server.LogLevel == "debug",
 	})
 	router.Use(corsMiddleware(c))
 
-	// Add authentication middleware if enabled
-	if s.config.Auth.Enabled && s.config.Auth.RequireAuth {
-		router.Use(middleware.AuthMiddleware(s.config.Auth))
-	}
-
-	// Add metrics middleware if enabled
-	if s.config.Monitoring.MetricsEnabled {
-		router.Use(middleware.MetricsMiddleware())
-	}
-
 	// Add request ID middleware
 	router.Use(middleware.RequestIDMiddleware())
-}
-
-// StartMetricsServer starts the metrics server
-func (s *Server) StartMetricsServer() error {
-	if !s.config.Monitoring.MetricsEnabled {
-		return nil
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-
-	metricsServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", s.config.Monitoring.MetricsPort),
-		Handler:      mux,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-	}
-
-	log.Info().
-		Int("port", s.config.Monitoring.MetricsPort).
-		Msg("Starting metrics server")
-
-	go func() {
-		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("Failed to start metrics server")
-		}
-	}()
-
-	return nil
 }
 
 // corsMiddleware converts cors.Cors to gin middleware

@@ -2,155 +2,90 @@ package config
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"strconv"
 	"time"
 
-	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
 )
 
 // Config represents the application configuration
 type Config struct {
-	Server      ServerConfig      `mapstructure:"server"`
-	Facilitator FacilitatorConfig `mapstructure:"facilitator"`
-	Auth        AuthConfig        `mapstructure:"auth"`
-	Monitoring  MonitoringConfig  `mapstructure:"monitoring"`
-	Supported   SupportedConfig   `mapstructure:"supported"`
+	Server      ServerConfig
+	Facilitator FacilitatorConfig
 }
 
 // ServerConfig represents HTTP server configuration
 type ServerConfig struct {
-	Host          string        `mapstructure:"host"`
-	Port          int           `mapstructure:"port"`
-	ReadTimeout   time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout  time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout   time.Duration `mapstructure:"idle_timeout"`
-	ResourcesFile string        `mapstructure:"resources_file"`
+	Host         string
+	Port         int
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
+	LogLevel     string
+	LogFormat    string
 }
 
-// EthereumConfig represents Ethereum client configuration
+// FacilitatorConfig represents facilitator configuration
 type FacilitatorConfig struct {
-	DefaultChainNetwork  string `mapstructure:"default_chain_network"`
-	DefaultChainRPC      string `mapstructure:"default_chain_rpc"`
-	DefaultChainID       uint64 `mapstructure:"default_chain_id"`
-	DefaultTokenAddress  string `mapstructure:"default_token_address"`
-	DefaultTokenName     string `mapstructure:"default_token_name"`
-	DefaultTokenVersion  string `mapstructure:"default_token_version"`
-	DefaultTokenDecimals int64  `mapstructure:"default_token_decimals"`
-	PrivateKey           string `mapstructure:"private_key"`
-	GasLimit             uint64 `mapstructure:"gas_limit"`
-	GasPrice             string `mapstructure:"gas_price"`
+	Network         string
+	ChainRPC        string
+	ChainID         uint64
+	TokenAddress    string
+	TokenName       string
+	TokenVersion    string
+	TokenDecimals   int64
+	PrivateKey      string
+	GasLimit        uint64
+	GasPrice        string
+	SupportedScheme string
 }
 
-// AuthConfig represents authentication configuration
-type AuthConfig struct {
-	Enabled     bool     `mapstructure:"enabled"`
-	APIKeys     []string `mapstructure:"api_keys"`
-	JWTSecret   string   `mapstructure:"jwt_secret"`
-	RequireAuth bool     `mapstructure:"require_auth"`
-}
-
-// MonitoringConfig represents monitoring and observability configuration
-type MonitoringConfig struct {
-	MetricsEnabled bool   `mapstructure:"metrics_enabled"`
-	MetricsPort    int    `mapstructure:"metrics_port"`
-	LogLevel       string `mapstructure:"log_level"`
-	LogFormat      string `mapstructure:"log_format"`
-}
-
-// SupportedConfig represents supported schemes and networks
-type SupportedConfig struct {
-	Schemes        []string          `mapstructure:"schemes"`
-	Networks       []string          `mapstructure:"networks"`
-	ChainIds       map[string]uint64 `mapstructure:"chain_ids"`
-	ChainRPCs      map[string]string `mapstructure:"chain_rpcs"`
-	TokenContracts map[string]string `mapstructure:"token_contracts"`
-}
-
-// LoadConfig loads configuration from file and environment
+// LoadConfig loads configuration from .env file
 func LoadConfig(configPath string) (*Config, error) {
+	// Load .env file using godotenv
+	envFile := ".env"
 	if configPath != "" {
-		// If specific config file is provided, use it directly
-		viper.SetConfigFile(configPath)
-	} else {
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.AddConfigPath("/etc/x402-facilitator")
-		viper.AddConfigPath("$HOME/.x402-facilitator")
+		envFile = configPath
 	}
 
-	// Set environment variable prefix
-	viper.SetEnvPrefix("X402")
-	viper.AutomaticEnv()
-
-	// Set environment variable key replacer to handle underscores
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// Set default values
-	setDefaults()
-
-	// Read config file
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found, use defaults and environment
-			fmt.Println("Config file not found, using defaults and environment variables")
-		} else {
-			return nil, fmt.Errorf("error reading config file: %w", err)
-		}
+	// Load .env file (not required if using environment variables)
+	if err := godotenv.Load(envFile); err != nil {
+		// .env file not found is not an error, we'll use environment variables
+		fmt.Printf("Warning: .env file not found (%s), using environment variables only\n", envFile)
 	}
 
-	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("unable to decode config: %w", err)
+	cfg := &Config{
+		Server: ServerConfig{
+			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
+			Port:         getEnvAsInt("SERVER_PORT", 8080),
+			ReadTimeout:  getEnvAsDuration("SERVER_READ_TIMEOUT", 30*time.Second),
+			WriteTimeout: getEnvAsDuration("SERVER_WRITE_TIMEOUT", 30*time.Second),
+			IdleTimeout:  getEnvAsDuration("SERVER_IDLE_TIMEOUT", 120*time.Second),
+			LogLevel:     getEnv("SERVER_LOG_LEVEL", "info"),
+			LogFormat:    getEnv("SERVER_LOG_FORMAT", "json"),
+		},
+		Facilitator: FacilitatorConfig{
+			Network:         getEnv("FACILITATOR_NETWORK", "localhost"),
+			ChainRPC:        getEnv("FACILITATOR_CHAIN_RPC", "http://127.0.0.1:8545"),
+			ChainID:         getEnvAsUint64("FACILITATOR_CHAIN_ID", 1337),
+			TokenAddress:    getEnv("FACILITATOR_TOKEN_ADDRESS", ""),
+			TokenName:       getEnv("FACILITATOR_TOKEN_NAME", "MyToken"),
+			TokenVersion:    getEnv("FACILITATOR_TOKEN_VERSION", "1"),
+			TokenDecimals:   getEnvAsInt64("FACILITATOR_TOKEN_DECIMALS", 6),
+			PrivateKey:      getEnv("FACILITATOR_PRIVATE_KEY", ""),
+			GasLimit:        getEnvAsUint64("FACILITATOR_GAS_LIMIT", 100000),
+			GasPrice:        getEnv("FACILITATOR_GAS_PRICE", ""),
+			SupportedScheme: getEnv("FACILITATOR_SUPPORTED_SCHEME", "exact"),
+		},
 	}
 
 	// Validate configuration
-	if err := validateConfig(&config); err != nil {
+	if err := validateConfig(cfg); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	return &config, nil
-}
-
-// setDefaults sets default configuration values
-func setDefaults() {
-	// Server defaults
-	viper.SetDefault("server.host", "0.0.0.0")
-	viper.SetDefault("server.port", 8080)
-	viper.SetDefault("server.read_timeout", "30s")
-	viper.SetDefault("server.write_timeout", "30s")
-	viper.SetDefault("server.idle_timeout", "120s")
-	viper.SetDefault("server.resources_file", "resources.json")
-
-	// Ethereum defaults
-	viper.SetDefault("facilitator.default_chain_network", "localhost")
-	viper.SetDefault("facilitator.default_chain_rpc", "http://127.0.0.1:8545")
-	viper.SetDefault("facilitator.default_chain_id", 1337)
-	viper.SetDefault("facilitator.default_token_address", "")
-	viper.SetDefault("facilitator.default_token_name", "MyToken")
-	viper.SetDefault("facilitator.default_token_version", "1")
-	viper.SetDefault("facilitator.default_token_decimals", 6)
-	viper.SetDefault("facilitator.private_key", "")
-	viper.SetDefault("facilitator.gas_limit", 100000)
-	viper.SetDefault("facilitator.gas_price", "")
-
-	// Auth defaults
-	viper.SetDefault("auth.enabled", true)
-	viper.SetDefault("auth.require_auth", false)
-	viper.SetDefault("auth.jwt_secret", "change-this-secret-key")
-
-	// Monitoring defaults
-	viper.SetDefault("monitoring.metrics_enabled", true)
-	viper.SetDefault("monitoring.metrics_port", 9090)
-	viper.SetDefault("monitoring.log_level", "info")
-	viper.SetDefault("monitoring.log_format", "json")
-
-	// Supported defaults
-	viper.SetDefault("supported.schemes", []string{"exact"})
-	viper.SetDefault("supported.networks", []string{
-		"localhost",
-	})
+	return cfg, nil
 }
 
 // validateConfig validates the configuration
@@ -160,70 +95,85 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("invalid server port: %d", config.Server.Port)
 	}
 
-	// Validate auth configuration
-	if config.Auth.Enabled && len(config.Auth.APIKeys) == 0 && config.Auth.RequireAuth {
-		return fmt.Errorf("authentication enabled but no API keys configured")
+	// Validate facilitator configuration
+	if config.Facilitator.PrivateKey == "" {
+		return fmt.Errorf("FACILITATOR_PRIVATE_KEY is required")
 	}
 
-	// Validate monitoring configuration
+	// Validate server log level configuration
 	validLogLevels := map[string]bool{
 		"trace": true, "debug": true, "info": true,
 		"warn": true, "error": true, "fatal": true, "panic": true,
 	}
-	if !validLogLevels[config.Monitoring.LogLevel] {
-		return fmt.Errorf("invalid log level: %s", config.Monitoring.LogLevel)
+	if !validLogLevels[config.Server.LogLevel] {
+		return fmt.Errorf("invalid log level: %s", config.Server.LogLevel)
 	}
 
 	return nil
 }
 
-func (c *Config) GetSupportedSchemes() []string {
-	if len(c.Supported.Schemes) > 0 {
-		return c.Supported.Schemes
-	}
-	return []string{
-		"exact",
-	}
-}
-
-// GetSupportedNetworks returns list of supported networks
-func (c *Config) GetSupportedNetworks() []string {
-	if len(c.Supported.Networks) > 0 {
-		return c.Supported.Networks
-	}
-	return []string{}
-}
-
-// GetTokenAddress returns Token contract address for the given network
-func (c *Config) GetTokenAddress(network string) (string, error) {
-	address, exists := c.Supported.TokenContracts[network]
-	if !exists {
-		return "", fmt.Errorf("network %s not supported", network)
-	}
-	return address, nil
-}
-
-// GetChainID returns the chain ID for the given network
-func (c *Config) GetChainID(network string) (uint64, error) {
-	chainID, exists := c.Supported.ChainIds[network]
-	if !exists {
-		return 0, fmt.Errorf("network %s not supported", network)
-	}
-	return chainID, nil
-}
-
-func (c *Config) GetChainRPC(network string) (string, error) {
-	rpcURL, exists := c.Supported.ChainRPCs[network]
-	if !exists {
-		return "", fmt.Errorf("network %s not supported", network)
-	}
-	return rpcURL, nil
-}
-
+// Show displays the configuration (without sensitive data)
 func (c *Config) Show() {
 	fmt.Println("Config:")
-	fmt.Printf("  Server: %+v\n", c.Server)
-	fmt.Printf("  Auth: %+v\n", c.Auth)
-	fmt.Printf("  Monitoring: %+v\n", c.Monitoring)
-	fmt.Printf("  Supported: %+v\n", c.Supported)
+	fmt.Printf("  Server: Host=%s, Port=%d, LogLevel=%s, LogFormat=%s\n",
+		c.Server.Host, c.Server.Port, c.Server.LogLevel, c.Server.LogFormat)
+	fmt.Printf("  Facilitator: Network=%s, ChainID=%d, ChainRPC=%s\n",
+		c.Facilitator.Network, c.Facilitator.ChainID, c.Facilitator.ChainRPC)
+}
+
+// Helper functions for environment variable parsing
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func getEnvAsInt64(key string, defaultValue int64) int64 {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.ParseInt(valueStr, 10, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func getEnvAsUint64(key string, defaultValue uint64) uint64 {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.ParseUint(valueStr, 10, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	duration, err := time.ParseDuration(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+	return duration
 }

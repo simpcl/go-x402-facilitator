@@ -9,11 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"go-x402-facilitator/internal/api"
 	"go-x402-facilitator/internal/config"
 	"go-x402-facilitator/internal/facilitator"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -50,23 +51,17 @@ func main() {
 		Msg("Starting X402 Facilitator")
 
 	// Create facilitator instance
-	f, err := facilitator.New(cfg)
+	f, err := facilitator.New(&cfg.Facilitator)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create facilitator")
 	}
 	defer f.Close()
 
 	log.Info().
-		Int("client_count", f.GetClientCount()).
 		Msg("Facilitator initialized successfully")
 
 	// Create API server
 	server := api.NewServer(cfg, f)
-
-	// Start metrics server if enabled
-	if err := server.StartMetricsServer(); err != nil {
-		log.Warn().Err(err).Msg("Failed to start metrics server")
-	}
 
 	// Setup graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -108,14 +103,14 @@ func main() {
 // setupLogger configures the global logger
 func setupLogger(cfg *config.Config) {
 	// Set log level
-	level, err := zerolog.ParseLevel(cfg.Monitoring.LogLevel)
+	level, err := zerolog.ParseLevel(cfg.Server.LogLevel)
 	if err != nil {
 		level = zerolog.InfoLevel
 	}
 	zerolog.SetGlobalLevel(level)
 
 	// Configure output format
-	if cfg.Monitoring.LogFormat == "console" {
+	if cfg.Server.LogFormat == "console" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	} else {
 		log.Logger = log.With().Timestamp().Logger()

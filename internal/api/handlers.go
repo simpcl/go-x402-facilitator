@@ -130,20 +130,17 @@ func (h *Handler) Health(c *gin.Context) {
 
 // Ready handles the /ready endpoint
 func (h *Handler) Ready(c *gin.Context) {
-	clientCount := h.facilitator.GetClientCount()
-
-	if clientCount == 0 {
+	// Check if facilitator is initialized
+	if h.facilitator == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":      "not_ready",
-			"reason":      "no_clients_initialized",
-			"clientCount": clientCount,
+			"status": "not_ready",
+			"reason": "facilitator_not_initialized",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status":      "ready",
-		"clientCount": clientCount,
+		"status": "ready",
 	})
 }
 
