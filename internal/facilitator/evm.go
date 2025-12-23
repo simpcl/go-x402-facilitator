@@ -37,7 +37,7 @@ const ReceiptStatusSuccess = uint64(1)
 type EVMFacilitator struct {
 	client       *ethclient.Client
 	chainID      uint64
-	tokenAddr    common.Address
+	tokenAddress common.Address
 	privateKey   *ecdsa.PrivateKey
 	auth         *bind.TransactOpts
 	tokenName    string // Cached token name from contract
@@ -45,18 +45,14 @@ type EVMFacilitator struct {
 }
 
 // NewEVMFacilitator creates a new EVM facilitator instance
-func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, privateKeyHex string) (*EVMFacilitator, error) {
+func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddr string, privateKeyHex string) (*EVMFacilitator, error) {
 	// Input validation
 	if rpcURL == "" {
 		return nil, fmt.Errorf("RPC URL cannot be empty")
 	}
 
-	if tokenAddress == "" {
-		return nil, fmt.Errorf("token contract address cannot be empty")
-	}
-
-	if !common.IsHexAddress(tokenAddress) {
-		return nil, fmt.Errorf("invalid token contract address format: %s", tokenAddress)
+	if tokenAddr == "" || !common.IsHexAddress(tokenAddr) {
+		return nil, fmt.Errorf("invalid token contract address: %s", tokenAddr)
 	}
 
 	// Attempt to connect to Ethereum client with timeout
@@ -105,22 +101,20 @@ func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddress string, priva
 		}
 	}
 
-	tokenAddr := common.HexToAddress(tokenAddress)
+	tokenAddress := common.HexToAddress(tokenAddr)
 	facilitator := &EVMFacilitator{
-		client:     client,
-		chainID:    chainID,
-		tokenAddr:  tokenAddr,
-		privateKey: privateKey,
-		auth:       auth,
+		client:       client,
+		chainID:      chainID,
+		tokenAddress: tokenAddress,
+		privateKey:   privateKey,
+		auth:         auth,
 	}
 
 	// Fetch token name and version from contract
 	// Use a separate context with timeout for contract call
 	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer fetchCancel()
-
-	tcu := utils.NewTokenContractUtils(tokenAddr.Hex(), client)
-	tokenName, tokenVersion, err := tcu.FetchTokenInfoWithContext(fetchCtx)
+	tokenName, tokenVersion, err := utils.FetchTokenInfoWithContext(fetchCtx, client, tokenAddress)
 	if err != nil {
 		// Log warning but don't fail - use defaults
 		log.Warn().
@@ -463,8 +457,12 @@ func (f *EVMFacilitator) verifyBalance(ctx context.Context, payload *facilitator
 	}
 
 	// Check if client connection is actually working
-	tcu := utils.NewTokenContractUtils(requirements.Asset, f.client)
-	balance, err := tcu.GetTokenBalanceWithContext(payload.Authorization.From, ctx)
+	balance, err := utils.GetTokenBalanceWithContext(
+		ctx,
+		f.client,
+		common.HexToAddress(requirements.Asset),
+		common.HexToAddress(payload.Authorization.From),
+	)
 	if err != nil {
 		// If balance check fails due to connection issues, allow the payment to proceed
 		// This is a graceful degradation approach
@@ -541,7 +539,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	// Try to estimate gas and simulate the call to catch revert reasons
 	msg := ethereum.CallMsg{
 		From: f.auth.From,
-		To:   &f.tokenAddr,
+		To:   &f.tokenAddress,
 		Data: data,
 		Gas:  0,
 	}
@@ -609,7 +607,7 @@ func (f *EVMFacilitator) executeTransferWithAuthorization(ctx context.Context, p
 	// The token amount is already included in the contract call data
 	tx := ethTypes.NewTransaction(
 		txNonce,
-		f.tokenAddr,
+		f.tokenAddress,
 		big.NewInt(0), // Transaction value must be 0 for ERC20 transfers
 		gasLimit,
 		gasPrice,

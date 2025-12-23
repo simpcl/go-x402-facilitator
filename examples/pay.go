@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"go-x402-facilitator/pkg/utils"
 )
 
 func GetPayeeWalletAddress() string {
@@ -16,7 +18,7 @@ func GetPayeeWalletAddress() string {
 
 // Payer represents the payer in the X402 payment flow
 type Payer struct {
-	account *Account
+	account *utils.Account
 }
 
 // NewPayer creates a new payer instance
@@ -26,7 +28,7 @@ func NewPayer() *Payer {
 		log.Fatalln("ERROR: PAYER_PRIVATE_KEY environment variable is not set")
 	}
 
-	account, err := NewAccount(privateKey)
+	account, err := utils.NewAccountWithPrivateKey(ChainRPC, TokenContract, privateKey)
 	if err != nil {
 		log.Fatalf("ERROR: failed to create payer account: %v", err)
 	}
@@ -128,12 +130,12 @@ func main() {
 
 	// Payment details
 	// amount := "1000000000000000000" // 1 Token (assuming 18 decimals)
-	amount := "1000000" // 1 Token (assuming 6 decimals)
+	amount := "10000000" // 1 Token (assuming 6 decimals)
 	resource := "https://api.example.com/premium-content"
 	description := "Premium content access"
 
 	fmt.Printf("\nMaking payment:\n")
-	fmt.Printf("From: %s\n", payer.account.Address.Hex())
+	fmt.Printf("From: %s\n", payer.account.WalletAddress.Hex())
 	fmt.Printf("To: %s\n", payeeAddress)
 	fmt.Printf("Amount: %s tokens\n", amount)
 	fmt.Printf("Resource: %s\n", resource)

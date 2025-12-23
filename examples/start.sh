@@ -10,6 +10,5 @@ export FACILITATOR_URL="http://localhost:8080"
 
 export PAYER_PRIVATE_KEY=""
 
-# export PAYEE_WALLET_ADDRESS="0x"
-# go run examples/pay_with_facilitator.go examples/common.go examples/account.go
-go run examples/pay_with_gateway.go examples/common.go examples/account.go
+export PAYEE_WALLET_ADDRESS="0x"
+go run examples/pay.go examples/common.go

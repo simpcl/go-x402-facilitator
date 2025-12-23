@@ -12,100 +12,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type TokenContractUtils struct {
-	tokenAddress string
-	client       *ethclient.Client
-}
-
-func NewTokenContractUtils(tokenAddress string, client *ethclient.Client) *TokenContractUtils {
-	return &TokenContractUtils{
-		tokenAddress: tokenAddress,
-		client:       client,
-	}
-}
-
-func (tcu *TokenContractUtils) FetchTokenInfo() (string, string, error) {
-	return tcu.FetchTokenInfoWithContext(context.Background())
-}
-
-func (tcu *TokenContractUtils) FetchTokenInfoWithContext(ctx context.Context) (string, string, error) {
-	tokenAddr := common.HexToAddress(tcu.tokenAddress)
-
-	// ERC20 Token name() function ABI
-	nameABI := `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-	// ERC20 Token version() function ABI
-	versionABI := `[{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-
-	nameParsed, err := abi.JSON(strings.NewReader(nameABI))
+func CallTokenContractFunction(
+	ctx context.Context,
+	client *ethclient.Client,
+	abiFunctionString string,
+	tokenContractAddress common.Address,
+	functionName string,
+	args ...interface{},
+) ([]interface{}, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(abiFunctionString))
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse name ABI: %w", err)
-	}
-
-	versionParsed, err := abi.JSON(strings.NewReader(versionABI))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse version ABI: %w", err)
-	}
-
-	callOpts := &bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	}
-
-	// Get token name
-	nameContract := bind.NewBoundContract(tokenAddr, nameParsed, tcu.client, tcu.client, tcu.client)
-	var nameResults []interface{}
-	err = nameContract.Call(callOpts, &nameResults, "name")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to call name(): %w", err)
-	}
-	if len(nameResults) == 0 {
-		return "", "", fmt.Errorf("name() returned no results")
-	}
-	tokenName, ok := nameResults[0].(string)
-	if !ok {
-		return "", "", fmt.Errorf("name() returned invalid type")
-	}
-
-	// Get token version
-	versionContract := bind.NewBoundContract(tokenAddr, versionParsed, tcu.client, tcu.client, tcu.client)
-	var versionResults []interface{}
-	err = versionContract.Call(callOpts, &versionResults, "version")
-	if err != nil {
-		// Version might not exist, use default
-		return tokenName, "1", nil
-	}
-	if len(versionResults) == 0 {
-		return tokenName, "1", nil
-	}
-	tokenVersion, ok := versionResults[0].(string)
-	if !ok {
-		return tokenName, "1", nil
-	}
-
-	return tokenName, tokenVersion, nil
-}
-
-// GetTokenBalance returns the account's ERC20 token balance
-func (tcu *TokenContractUtils) GetTokenBalance(ownerAddress string) (*big.Int, error) {
-	return tcu.GetTokenBalanceWithContext(ownerAddress, context.Background())
-}
-
-func (tcu *TokenContractUtils) GetTokenBalanceWithContext(ownerAddress string, ctx context.Context) (*big.Int, error) {
-	tokenAddr := common.HexToAddress(tcu.tokenAddress)
-	ownerAddr := common.HexToAddress(ownerAddress)
-
-	// Test connection with a simple call
-	_, err := tcu.client.ChainID(ctx)
-	if err != nil {
-		return big.NewInt(0), fmt.Errorf("client connection failed: %w", err)
-	}
-
-	// ERC20 balanceOf function ABI
-	balanceABI := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
-
-	parsedABI, err := abi.JSON(strings.NewReader(balanceABI))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse balanceOf ABI: %w", err)
+		return nil, fmt.Errorf("failed to parse ABI %s: %w", abiFunctionString, err)
 	}
 
 	// Use bind.Call for proper ABI encoding/decoding
@@ -114,15 +31,95 @@ func (tcu *TokenContractUtils) GetTokenBalanceWithContext(ownerAddress string, c
 		Context: ctx,
 	}
 
-	boundContract := bind.NewBoundContract(tokenAddr, parsedABI, tcu.client, tcu.client, tcu.client)
+	boundContract := bind.NewBoundContract(tokenContractAddress, parsedABI, client, client, client)
 	var results []interface{}
-	err = boundContract.Call(callOpts, &results, "balanceOf", ownerAddr)
+	err = boundContract.Call(callOpts, &results, functionName, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call balanceOf: %w", err)
+		return nil, fmt.Errorf("failed to call %s with args %v: %w", functionName, args, err)
 	}
 
 	if len(results) == 0 {
-		return big.NewInt(0), nil
+		return nil, fmt.Errorf("no results returned for function %s with args %v", functionName, args)
+	}
+
+	return results, nil
+}
+
+func FetchTokenInfoWithContext(
+	ctx context.Context,
+	client *ethclient.Client,
+	tokenContractAddress common.Address,
+) (string, string, error) {
+	tokenName, err := FetchTokenNameWithContext(ctx, client, tokenContractAddress)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch token name: %w", err)
+	}
+	tokenVersion, err := FetchTokenVersionWithContext(ctx, client, tokenContractAddress)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch token version: %w", err)
+	}
+	return tokenName, tokenVersion, nil
+}
+
+func FetchTokenNameWithContext(
+	ctx context.Context,
+	client *ethclient.Client,
+	tokenContractAddress common.Address,
+) (string, error) {
+	// ERC20 Token name() function ABI
+	nameABI := `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
+
+	// Get token name
+	nameResults, err := CallTokenContractFunction(ctx, client, nameABI, tokenContractAddress, "name")
+	if err != nil {
+		return "", fmt.Errorf("failed to call name(): %w", err)
+	}
+	tokenName, ok := nameResults[0].(string)
+	if !ok {
+		return "", fmt.Errorf("name() returned invalid type")
+	}
+	return tokenName, nil
+}
+
+func FetchTokenVersionWithContext(
+	ctx context.Context,
+	client *ethclient.Client,
+	tokenContractAddress common.Address,
+) (string, error) {
+	// ERC20 Token version() function ABI
+	versionABI := `[{"constant":true,"inputs":[],"name":"version","outputs":[{"name":"","type":"string"}],"type":"function"}]`
+
+	// Get token version
+	versionResults, err := CallTokenContractFunction(ctx, client, versionABI, tokenContractAddress, "version")
+	if err != nil {
+		return "", fmt.Errorf("failed to call version(): %w", err)
+	}
+	tokenVersion, ok := versionResults[0].(string)
+	if !ok {
+		return "", fmt.Errorf("version() returned invalid type")
+	}
+
+	return tokenVersion, nil
+}
+
+func GetTokenBalanceWithContext(
+	ctx context.Context,
+	client *ethclient.Client,
+	tokenContractAddress common.Address,
+	ownerAddress common.Address,
+) (*big.Int, error) {
+	// Test connection with a simple call
+	_, err := client.ChainID(ctx)
+	if err != nil {
+		return big.NewInt(0), fmt.Errorf("client connection failed: %w", err)
+	}
+
+	// ERC20 balanceOf function ABI
+	balanceABI := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
+
+	results, err := CallTokenContractFunction(ctx, client, balanceABI, tokenContractAddress, "balanceOf", ownerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call balanceOf: %w", err)
 	}
 
 	balance, ok := results[0].(*big.Int)
@@ -133,31 +130,18 @@ func (tcu *TokenContractUtils) GetTokenBalanceWithContext(ownerAddress string, c
 	return balance, nil
 }
 
-// GetDomainSeparator fetches the actual domain separator from the contract
-func (tcu *TokenContractUtils) GetDomainSeparator(ctx context.Context) ([]byte, error) {
-	tokenAddr := common.HexToAddress(tcu.tokenAddress)
+// GetDomainSeparatorWithContext fetches the actual domain separator from the contract
+func GetDomainSeparatorWithContext(
+	ctx context.Context,
+	client *ethclient.Client,
+	tokenContractAddress common.Address,
+) ([]byte, error) {
 	// DOMAIN_SEPARATOR() function ABI
 	domainABI := `[{"constant":true,"inputs":[],"name":"DOMAIN_SEPARATOR","outputs":[{"name":"","type":"bytes32"}],"type":"function"}]`
 
-	domainParsed, err := abi.JSON(strings.NewReader(domainABI))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse domain separator ABI: %w", err)
-	}
-
-	callOpts := &bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	}
-
-	domainContract := bind.NewBoundContract(tokenAddr, domainParsed, tcu.client, tcu.client, tcu.client)
-	var results []interface{}
-	err = domainContract.Call(callOpts, &results, "DOMAIN_SEPARATOR")
+	results, err := CallTokenContractFunction(ctx, client, domainABI, tokenContractAddress, "DOMAIN_SEPARATOR")
 	if err != nil {
 		return nil, fmt.Errorf("failed to call DOMAIN_SEPARATOR: %w", err)
-	}
-
-	if len(results) == 0 {
-		return nil, fmt.Errorf("DOMAIN_SEPARATOR returned no results")
 	}
 
 	domainBytes, ok := results[0].([32]byte)

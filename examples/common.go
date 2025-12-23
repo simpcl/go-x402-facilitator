@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,9 +17,56 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+var (
+	ChainNetwork   = "localhost"
+	ChainID        = uint64(1337)
+	ChainRPC       = "http://127.0.0.1:8545"
+	TokenContract  = "0xBA32c2Ee180e743cCe34CbbC86cb79278C116CEb"
+	TokenName      = "MyToken"
+	TokenVersion   = "1"
+	FacilitatorURL = "http://localhost:8080"
+)
+
+func init() {
+	var s string
+	s = os.Getenv("CHAIN_NETWORK")
+	if s != "" {
+		ChainNetwork = s
+	}
+	s = os.Getenv("CHAIN_ID")
+	if s != "" {
+		var err error
+		ChainID, err = strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			fmt.Println("Error parsing ChainID:", err)
+			os.Exit(-1)
+		}
+	}
+	s = os.Getenv("CHAIN_RPC")
+	if s != "" {
+		ChainRPC = s
+	}
+	s = os.Getenv("TOKEN_CONTRACT")
+	if s != "" {
+		TokenContract = s
+	}
+	s = os.Getenv("TOKEN_NAME")
+	if s != "" {
+		TokenName = s
+	}
+	s = os.Getenv("TOKEN_VERSION")
+	if s != "" {
+		TokenVersion = s
+	}
+	s = os.Getenv("FACILITATOR_URL")
+	if s != "" {
+		FacilitatorURL = s
+	}
+}
+
 // CreatePaymentPayload creates a complete X402 payment payload
 func CreatePaymentPayload(
-	account *Account,
+	account *utils.Account,
 	to string,
 	value string,
 	tokenName string,
@@ -30,10 +79,10 @@ func CreatePaymentPayload(
 	validBefore := now + validDuration
 
 	// Generate nonce (simplified - in production, use a proper nonce generation)
-	nonce := fmt.Sprintf("0x%x", crypto.Keccak256Hash([]byte(fmt.Sprintf("%d-%s-%s", now, account.Address.Hex(), to))).Hex())
+	nonce := fmt.Sprintf("0x%x", crypto.Keccak256Hash([]byte(fmt.Sprintf("%d-%s-%s", now, account.WalletAddress.Hex(), to))).Hex())
 
 	typedData := utils.BuildTypedData(
-		account.Address.Hex(),
+		account.WalletAddress.Hex(),
 		to,
 		value,
 		fmt.Sprintf("%d", validAfter),
@@ -55,7 +104,7 @@ func CreatePaymentPayload(
 
 	// Create authorization
 	auth := facilitatorTypes.Authorization{
-		From:        strings.ToLower(account.Address.Hex()),
+		From:        strings.ToLower(account.WalletAddress.Hex()),
 		To:          strings.ToLower(to),
 		Value:       value,
 		ValidAfter:  fmt.Sprintf("%d", validAfter),
