@@ -92,7 +92,6 @@ type DiscoveryItem struct {
 	Type        string                `json:"type"`
 	X402Version int                   `json:"x402Version"`
 	Accepts     []PaymentRequirements `json:"accepts"`
-	LastUpdated int64                 `json:"lastUpdated"`
 }
 
 // DiscoveryResponse represents the response from /discovery/resources endpoint
