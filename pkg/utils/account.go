@@ -123,7 +123,7 @@ func (a *Account) WaitForReceipt(txHash common.Hash) error {
 
 // PrintAccountInfo prints account information
 func (a *Account) PrintAccountInfo(accountName string) {
-	fmt.Printf("=== %s Account ===\n", accountName)
+	fmt.Printf("\n--- %s Account ---\n", accountName)
 	fmt.Printf("Chain RPC URL: %s\n", a.ChainRPCURL)
 	fmt.Printf("Token Contract Address: %s\n", a.TokenContractAddress.Hex())
 	fmt.Printf("Wallet Address: %s\n", a.WalletAddress.Hex())
@@ -147,4 +147,5 @@ func (a *Account) PrintAccountInfo(accountName string) {
 	} else {
 		fmt.Printf("Token Balance: %s tokens\n", tokenBalance.String())
 	}
+	fmt.Printf("------------------------\n\n")
 }

@@ -8,13 +8,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	facilitatorTypes "go-x402-facilitator/pkg/types"
-	"go-x402-facilitator/pkg/utils"
-
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
@@ -61,93 +57,6 @@ func init() {
 	s = os.Getenv("FACILITATOR_URL")
 	if s != "" {
 		FacilitatorURL = s
-	}
-}
-
-// CreatePaymentPayload creates a complete X402 payment payload
-func CreatePaymentPayload(
-	account *utils.Account,
-	to string,
-	value string,
-	tokenName string,
-	tokenVersion string,
-) (*facilitatorTypes.PaymentPayload, error) {
-
-	var validDuration int64 = 300
-	now := time.Now().Unix()
-	validAfter := now - 600000
-	validBefore := now + validDuration
-
-	// Generate nonce (simplified - in production, use a proper nonce generation)
-	nonce := fmt.Sprintf("0x%x", crypto.Keccak256Hash([]byte(fmt.Sprintf("%d-%s-%s", now, account.WalletAddress.Hex(), to))).Hex())
-
-	typedData := utils.BuildTypedData(
-		account.WalletAddress.Hex(),
-		to,
-		value,
-		fmt.Sprintf("%d", validAfter),
-		fmt.Sprintf("%d", validBefore),
-		nonce,
-		TokenContract,
-		ChainID,
-		tokenName,
-		tokenVersion,
-	)
-	// Generate signature
-	signature, err := utils.GenerateTypedDataSignature(
-		typedData,
-		account.PrivateKey,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate signature: %w", err)
-	}
-
-	// Create authorization
-	auth := facilitatorTypes.Authorization{
-		From:        strings.ToLower(account.WalletAddress.Hex()),
-		To:          strings.ToLower(to),
-		Value:       value,
-		ValidAfter:  fmt.Sprintf("%d", validAfter),
-		ValidBefore: fmt.Sprintf("%d", validBefore),
-		Nonce:       nonce,
-	}
-
-	// Create exact EVM payload
-	exactPayload := &facilitatorTypes.ExactEVMPayload{
-		Signature:     signature,
-		Authorization: auth,
-	}
-
-	payload := &facilitatorTypes.PaymentPayload{
-		X402Version: 1,
-		Scheme:      "exact",
-		Network:     ChainNetwork,
-		Payload:     *exactPayload,
-	}
-
-	return payload, nil
-}
-
-// CreatePaymentRequirements creates payment requirements for the seller
-func CreatePaymentRequirements(
-	sellerAddress string,
-	amount string,
-	resource string,
-	description string,
-	tokenName string,
-	tokenVersion string,
-) *facilitatorTypes.PaymentRequirements {
-	return &facilitatorTypes.PaymentRequirements{
-		Scheme:            "exact",
-		Network:           ChainNetwork,
-		Resource:          resource,
-		Description:       description,
-		MaxAmountRequired: amount,
-		PayTo:             strings.ToLower(sellerAddress),
-		AssetType:         "ERC20",
-		Asset:             strings.ToLower(TokenContract),
-		TokenName:         tokenName,
-		TokenVersion:      tokenVersion,
 	}
 }
 

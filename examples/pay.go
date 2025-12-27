@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
+	"go-x402-facilitator/pkg/client"
 	"go-x402-facilitator/pkg/utils"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func GetPayeeWalletAddress() string {
@@ -38,35 +42,47 @@ func NewPayer() *Payer {
 // MakePayment makes a payment to the payee
 func (b *Payer) MakePayment(sellerAddress string, amount string, resource string, description string) error {
 	fmt.Println("=== Starting X402 Payment Process ===")
+	fmt.Printf("\nMaking payment:\n")
+	fmt.Printf("From: %s\n", b.account.WalletAddress.Hex())
+	fmt.Printf("To: %s\n", sellerAddress)
+	fmt.Printf("Amount: %s tokens\n", amount)
+	fmt.Printf("Resource: %s\n", resource)
+	fmt.Printf("Description: %s\n", description)
+	fmt.Println()
 
-	// Print payer info
-	b.account.PrintAccountInfo("Payer")
-
-	tokenName, tokenVersion := b.account.GetTokenInfo()
-	if tokenName == "" || tokenVersion == "" {
-		return fmt.Errorf("failed to get token info")
-	}
-	fmt.Printf("Token name: %s, Token version: %s\n", tokenName, tokenVersion)
-
-	// Create payment requirements
 	fmt.Println("Creating payment requirements...")
-	requirements := CreatePaymentRequirements(
+	requirements := client.CreatePaymentRequirements(
+		"exact",
+		ChainNetwork,
 		sellerAddress,
 		amount,
+		"ERC20",
+		TokenContract,
 		resource,
 		description,
-		tokenName,
-		tokenVersion,
+		TokenName,
+		TokenVersion,
 	)
 
-	// Create payment payload
 	fmt.Println("Creating payment payload...")
-	payload, err := CreatePaymentPayload(
+	var validDuration int64 = 300
+	now := time.Now().Unix()
+	validAfter := now - 600000
+	validBefore := now + validDuration
+	// Generate nonce
+	nonce := fmt.Sprintf(
+		"0x%x",
+		crypto.Keccak256Hash([]byte(fmt.Sprintf("%d-%s-%s", now, b.account.WalletAddress.Hex(), requirements.PayTo))).Hex(),
+	)
+	fmt.Printf("Nonce: %s\n", nonce)
+
+	payload, err := client.CreatePaymentPayload(
+		requirements,
 		b.account,
-		sellerAddress,
-		amount,
-		tokenName,
-		tokenVersion,
+		validAfter,
+		validBefore,
+		ChainID,
+		nonce,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create payment payload: %w", err)
@@ -123,7 +139,7 @@ func main() {
 	payer := NewPayer()
 
 	// Check balance
-	payer.account.PrintAccountInfo("payer")
+	payer.account.PrintAccountInfo("Payer")
 
 	// Get payee address (for demo, use the test payee account)
 	payeeAddress := GetPayeeWalletAddress()
@@ -134,14 +150,6 @@ func main() {
 	resource := "https://api.example.com/premium-content"
 	description := "Premium content access"
 
-	fmt.Printf("\nMaking payment:\n")
-	fmt.Printf("From: %s\n", payer.account.WalletAddress.Hex())
-	fmt.Printf("To: %s\n", payeeAddress)
-	fmt.Printf("Amount: %s tokens\n", amount)
-	fmt.Printf("Resource: %s\n", resource)
-	fmt.Printf("Description: %s\n", description)
-	fmt.Println()
-
 	// Make payment
 	if err := payer.MakePayment(payeeAddress, amount, resource, description); err != nil {
 		log.Fatalf("Payment failed: %v", err)
@@ -150,6 +158,5 @@ func main() {
 	fmt.Println("\n=== Payment Process Complete ===")
 
 	// Check final balance
-	fmt.Println("\nFinal payer balance:")
-	payer.account.PrintAccountInfo("payer")
+	payer.account.PrintAccountInfo("Payer")
 }
