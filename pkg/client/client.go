@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"go-x402-facilitator/pkg/types"
-	"go-x402-facilitator/pkg/utils"
+	"github.com/agent-guide/go-x402-facilitator/pkg/types"
+	"github.com/agent-guide/go-x402-facilitator/pkg/utils"
 )
 
 // CreatePaymentRequirements creates payment requirements for the seller

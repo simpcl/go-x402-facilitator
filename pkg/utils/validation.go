@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	eip712 "go-x402-facilitator/pkg/eip712full"
-	"go-x402-facilitator/pkg/types"
+	eip712 "github.com/agent-guide/go-x402-facilitator/pkg/eip712full"
+	"github.com/agent-guide/go-x402-facilitator/pkg/types"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"

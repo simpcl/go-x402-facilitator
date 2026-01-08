@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"go-x402-facilitator/internal/config"
-	"go-x402-facilitator/internal/facilitator"
-	"go-x402-facilitator/internal/middleware"
+	"github.com/agent-guide/go-x402-facilitator/internal/config"
+	"github.com/agent-guide/go-x402-facilitator/internal/facilitator"
+	"github.com/agent-guide/go-x402-facilitator/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/cors"

@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"go-x402-facilitator/pkg/client"
-	"go-x402-facilitator/pkg/utils"
+	"github.com/agent-guide/go-x402-facilitator/pkg/client"
+	"github.com/agent-guide/go-x402-facilitator/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/crypto"
 )

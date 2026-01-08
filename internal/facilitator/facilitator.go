@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"go-x402-facilitator/internal/config"
-	facilitatorTypes "go-x402-facilitator/pkg/types"
+	"github.com/agent-guide/go-x402-facilitator/internal/config"
+	facilitatorTypes "github.com/agent-guide/go-x402-facilitator/pkg/types"
 
 	"github.com/rs/zerolog/log"
 )

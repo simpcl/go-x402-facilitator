@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"go-x402-facilitator/internal/facilitator"
-	"go-x402-facilitator/pkg/types"
+	"github.com/agent-guide/go-x402-facilitator/internal/facilitator"
+	"github.com/agent-guide/go-x402-facilitator/pkg/types"
 )
 
 // PaymentFacilitator is the public interface for X402 payment facilitation

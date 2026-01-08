@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	facilitatorTypes "go-x402-facilitator/pkg/types"
+	facilitatorTypes "github.com/agent-guide/go-x402-facilitator/pkg/types"
 )
 
 var (

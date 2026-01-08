@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"go-x402-facilitator/internal/facilitator"
-	"go-x402-facilitator/pkg/types"
+	"github.com/agent-guide/go-x402-facilitator/internal/facilitator"
+	"github.com/agent-guide/go-x402-facilitator/pkg/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"

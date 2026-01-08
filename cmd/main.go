@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"go-x402-facilitator/internal/api"
-	"go-x402-facilitator/internal/config"
-	"go-x402-facilitator/internal/facilitator"
+	"github.com/agent-guide/go-x402-facilitator/internal/api"
+	"github.com/agent-guide/go-x402-facilitator/internal/config"
+	"github.com/agent-guide/go-x402-facilitator/internal/facilitator"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
