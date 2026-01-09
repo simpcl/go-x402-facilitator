@@ -25,6 +25,8 @@ func New(cfg *config.FacilitatorConfig) (*Facilitator, error) {
 		cfg.ChainID,
 		cfg.TokenAddress,
 		cfg.PrivateKey,
+		cfg.GasLimit,
+		cfg.GasPrice,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create EVM facilitator for network %s: %w", cfg.Network, err)

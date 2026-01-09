@@ -37,7 +37,7 @@ type FacilitatorConfig struct {
 	TokenDecimals   int64
 	PrivateKey      string
 	GasLimit        uint64
-	GasPrice        string
+	GasPrice        uint64
 	SupportedScheme string
 }
 
@@ -74,8 +74,8 @@ func LoadConfig(configPath string) (*Config, error) {
 			TokenVersion:    getEnv("FACILITATOR_TOKEN_VERSION", "1"),
 			TokenDecimals:   getEnvAsInt64("FACILITATOR_TOKEN_DECIMALS", 6),
 			PrivateKey:      getEnv("FACILITATOR_PRIVATE_KEY", ""),
-			GasLimit:        getEnvAsUint64("FACILITATOR_GAS_LIMIT", 100000),
-			GasPrice:        getEnv("FACILITATOR_GAS_PRICE", ""),
+			GasLimit:        getEnvAsUint64("FACILITATOR_GAS_LIMIT", 21000),
+			GasPrice:        getEnvAsUint64("FACILITATOR_GAS_PRICE", 10),
 			SupportedScheme: getEnv("FACILITATOR_SUPPORTED_SCHEME", "exact"),
 		},
 	}

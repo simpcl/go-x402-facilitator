@@ -42,10 +42,19 @@ type EVMFacilitator struct {
 	auth         *bind.TransactOpts
 	tokenName    string // Cached token name from contract
 	tokenVersion string // Cached token version from contract
+	gasLimit     uint64
+	gasPrice     string
 }
 
 // NewEVMFacilitator creates a new EVM facilitator instance
-func NewEVMFacilitator(rpcURL string, chainID uint64, tokenAddr string, privateKeyHex string) (*EVMFacilitator, error) {
+func NewEVMFacilitator(
+	rpcURL string,
+	chainID uint64,
+	tokenAddr string,
+	privateKeyHex string,
+	gasLimit uint64,
+	gasPrice uint64,
+) (*EVMFacilitator, error) {
 	// Input validation
 	if rpcURL == "" {
 		return nil, fmt.Errorf("RPC URL cannot be empty")

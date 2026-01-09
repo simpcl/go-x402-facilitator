@@ -23,6 +23,8 @@ type PaymentFacilitator interface {
 	// IsNetworkSupported checks if a network is supported
 	IsNetworkSupported(network string) bool
 
+	CreatePaymentRequirements(resource, description, networkName, payTo, maxAmountRequired string) (*types.PaymentRequirements, error)
+
 	// Close closes all client connections
 	Close() error
 }
@@ -31,11 +33,16 @@ type PaymentFacilitator interface {
 // This is the main entry point for using the facilitator as a library
 // Supports multiple blockchain networks
 func New(cfg *FacilitatorConfig) (PaymentFacilitator, error) {
+	for _, schema := range cfg.SupportedSchemes {
+		if schema != "exact" {
+			return nil, fmt.Errorf("invalid schema: %s", schema)
+		}
+	}
 	wrapper := &facilitatorWrapper{
-		evmFacilitators: make(map[string]*facilitator.EVMFacilitator),
-		networks:        make(map[string]NetworkConfig),
-		supportedScheme: cfg.SupportedScheme,
-		mu:              sync.RWMutex{},
+		evmFacilitators:  make(map[string]*facilitator.EVMFacilitator),
+		networks:         make(map[string]NetworkConfig),
+		supportedSchemes: cfg.SupportedSchemes,
+		mu:               sync.RWMutex{},
 	}
 
 	// If no networks configured, return error
@@ -51,6 +58,8 @@ func New(cfg *FacilitatorConfig) (PaymentFacilitator, error) {
 			networkCfg.ChainID,
 			networkCfg.TokenAddress,
 			cfg.PrivateKey,
+			cfg.GasLimit,
+			cfg.GasPrice,
 		)
 		if err != nil {
 			// Close already created facilitators on error
@@ -72,8 +81,10 @@ type FacilitatorConfig struct {
 	Networks map[string]NetworkConfig
 
 	// Shared configuration across all networks
-	PrivateKey      string // Private key used for all networks
-	SupportedScheme string // Supported payment scheme (e.g., "exact")
+	PrivateKey       string   // Private key used for all networks
+	SupportedSchemes []string // Supported payment schemes (e.g., "exact")
+	GasLimit         uint64
+	GasPrice         uint64
 }
 
 // NetworkConfig represents configuration for a single blockchain network
@@ -84,16 +95,15 @@ type NetworkConfig struct {
 	TokenName     string
 	TokenVersion  string
 	TokenDecimals int64
-	GasLimit      uint64
-	GasPrice      string
+	TokenType     string
 }
 
 // facilitatorWrapper wraps multiple EVM facilitators to implement the public interface
 type facilitatorWrapper struct {
-	evmFacilitators map[string]*facilitator.EVMFacilitator
-	networks        map[string]NetworkConfig
-	supportedScheme string
-	mu              sync.RWMutex
+	evmFacilitators  map[string]*facilitator.EVMFacilitator
+	networks         map[string]NetworkConfig
+	supportedSchemes []string
+	mu               sync.RWMutex
 }
 
 func (w *facilitatorWrapper) Verify(ctx context.Context, req *types.VerifyRequest) (*types.VerifyResponse, error) {
@@ -186,7 +196,7 @@ func (w *facilitatorWrapper) GetSupported() *types.SupportedResponse {
 	for networkName := range w.evmFacilitators {
 		kinds = append(kinds, types.SupportedKind{
 			X402Version: 1,
-			Scheme:      w.supportedScheme,
+			Scheme:      "exact",
 			Network:     networkName,
 		})
 	}
@@ -202,6 +212,38 @@ func (w *facilitatorWrapper) IsNetworkSupported(network string) bool {
 	_, exists := w.evmFacilitators[network]
 	w.mu.RUnlock()
 	return exists
+}
+
+func (w *facilitatorWrapper) CreatePaymentRequirements(
+	resource,
+	description,
+	networkName,
+	payTo,
+	maxAmountRequired string,
+) (*types.PaymentRequirements, error) {
+	chainNetwork, ok := w.networks[networkName]
+	if !ok {
+		return nil, fmt.Errorf("Chain network not found")
+	}
+
+	// Use TokenType from chain network, default to "ERC20" if not set
+	assetType := chainNetwork.TokenType
+	if assetType == "" {
+		assetType = "ERC20"
+	}
+
+	return &types.PaymentRequirements{
+		Scheme:            "exact",
+		Network:           networkName,
+		Resource:          resource,
+		Description:       description,
+		MaxAmountRequired: maxAmountRequired,
+		PayTo:             payTo,
+		AssetType:         assetType,
+		Asset:             chainNetwork.TokenAddress,
+		TokenName:         chainNetwork.TokenName,
+		TokenVersion:      chainNetwork.TokenVersion,
+	}, nil
 }
 
 func (w *facilitatorWrapper) Close() error {
@@ -221,8 +263,10 @@ func (w *facilitatorWrapper) Close() error {
 }
 
 func (w *facilitatorWrapper) validateScheme(scheme string) error {
-	if scheme != w.supportedScheme {
-		return fmt.Errorf("unsupported scheme: %s (only %s is supported)", scheme, w.supportedScheme)
+	for _, supportedScheme := range w.supportedSchemes {
+		if scheme == supportedScheme {
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("unsupported scheme: %s", scheme)
 }
