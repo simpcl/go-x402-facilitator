@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	configPath = flag.String("config", "", "Path to configuration file")
+	configPath = flag.String("config", "", "Path to configuration env file ('.env' can be load automatically)")
 	version    = flag.Bool("version", false, "Show version information")
 )
 

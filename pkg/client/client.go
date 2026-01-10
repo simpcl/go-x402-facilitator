@@ -1,11 +1,13 @@
 package client
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"strings"
 
 	"github.com/agent-guide/go-x402-facilitator/pkg/types"
 	"github.com/agent-guide/go-x402-facilitator/pkg/utils"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // CreatePaymentRequirements creates payment requirements for the seller
@@ -38,18 +40,19 @@ func CreatePaymentRequirements(
 // CreatePaymentPayload creates a payment payload using the configured private key
 func CreatePaymentPayload(
 	requirements *types.PaymentRequirements,
-	account *utils.Account,
+	privateKey *ecdsa.PrivateKey,
 	validAfter int64,
 	validBefore int64,
 	chainID uint64,
 	nonce string,
 ) (*types.PaymentPayload, error) {
 
+	walletAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
 	tokenContractAddr := requirements.Asset
 
 	// Build typed data
 	typedData := utils.BuildTypedData(
-		account.WalletAddress.Hex(),
+		walletAddress.Hex(),
 		requirements.PayTo,
 		requirements.MaxAmountRequired,
 		fmt.Sprintf("%d", validAfter),
@@ -64,7 +67,7 @@ func CreatePaymentPayload(
 	// Generate signature
 	signature, err := utils.GenerateTypedDataSignature(
 		typedData,
-		account.PrivateKey,
+		privateKey,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate signature: %w", err)
@@ -72,7 +75,7 @@ func CreatePaymentPayload(
 
 	// Create authorization
 	auth := types.Authorization{
-		From:        strings.ToLower(account.WalletAddress.Hex()),
+		From:        strings.ToLower(walletAddress.Hex()),
 		To:          strings.ToLower(requirements.PayTo),
 		Value:       requirements.MaxAmountRequired,
 		ValidAfter:  fmt.Sprintf("%d", validAfter),

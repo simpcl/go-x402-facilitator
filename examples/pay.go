@@ -78,7 +78,7 @@ func (b *Payer) MakePayment(sellerAddress string, amount string, resource string
 
 	payload, err := client.CreatePaymentPayload(
 		requirements,
-		b.account,
+		b.account.PrivateKey,
 		validAfter,
 		validBefore,
 		ChainID,
